@@ -2,7 +2,6 @@
   (:require [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn log [  a]
   (.log js/console a) )
@@ -15,35 +14,36 @@
     (.fillRect x y w h) ))
 
 (defn draw-objs [ctx objs]
-  (doseq [{:keys [x y w h col]} o objs]
-    (draw-blob ctx x y w h col)))
-
+  (let [w 10 h 10]
+    (doseq [o objs]
+      (let [{:keys [x y col]} o ]
+        (draw-blob ctx x y w h col)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn update-vels [ {:keys [x y xv yv]} obj ]
+(defn update-vels [ {:keys [x y xv yv] :as obj} ]
   (assoc
     obj
     :x (+ x xv) :y (+ y yv)))
 
-(defn home [cx cy {:keys [x y xv yv]} obj ]
-  (let scalefn (fn [p pv cp] (+ pv (* (- p cp) 0.1)))
+(defn home [cx cy {:keys [x y xv yv] :as obj} ]
+  (let [ scalefn (fn [p pv cp] (+ pv (* (- p cp) 0.1))) ]
     (assoc
       obj
       :xv (scalefn x xv cx)
       :yv (scalefn y yv cy))))
 
-(defn update-objs [player objs ]
-  (let [{:keys [px py]} player]
+(defn update-objs [player objs]
+  (let [ {:keys [px py]} player ]
     (vec 
       (->> objs
            (map update-vels)
-           (map #(home px py) )))))
+           (map (partial home px py) )))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn update-state [{:keys [objs
                             player]} state]
   (-> state
-      (assoc :objs #(update-objs player objs %))))
+      (assoc :objs #(update-objs player %))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn render-all [ app owner node-ref ]
