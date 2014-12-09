@@ -14,7 +14,7 @@
     (.fillRect x y w h) ))
 
 (defn draw-objs [ctx objs]
-  (let [w 10 h 10]
+  (let [w 10 h 20]
     (doseq [o objs]
       (let [{:keys [x y col]} o ]
         (draw-blob ctx x y w h col)))))
@@ -73,7 +73,7 @@
     om/IWillMount
     (will-mount [_]
       (js/setInterval
-        (fn [] (om/update! update-state)) 100)
+        (fn [] (om/update! update-state app)) 100)
       )
 
     om/IDidMount
@@ -109,10 +109,10 @@
         (dom/h1 nil (:text app))
         (om/build container app)))))
 
-(defonce app-state
+(def app-state
   (atom
     {
-     :title "Chucky Egg Online"
+     :title "CHEGG"
      :center-x 100
      :center-y 100
 
