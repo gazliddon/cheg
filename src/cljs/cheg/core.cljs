@@ -1,5 +1,7 @@
 (ns cheg.core
+  (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [om.core :as om :include-macros true]
+            [cljs.core.async :refer [put! <! >! chan]]
             [om.dom :as dom :include-macros true]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -40,10 +42,9 @@
            (map (partial home px py) )))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn update-state [{:keys [objs
-                            player]} state]
-  (-> state
-      (assoc :objs #(update-objs player %))))
+(defn om-update-objs [app]
+  (let [{:keys [player objs]} app ]
+    (update-objs player objs)) )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn render-all [ app owner node-ref ]
@@ -68,13 +69,29 @@
     (render [ this ]
       (dom/h1 nil (:title app)))))
 
+
+(defn anim-loop [comm]
+  (let [fun (fn [] (do
+                    (js/requestAnimationFrame
+                      #(anim-loop comm)
+                      100
+                      )
+                    ))]
+    (go 
+      (>! comm :anim))
+    (fun)))
+
 (defn canvas [ app owner ]
   (reify
     om/IWillMount
     (will-mount [_]
-      (js/setInterval
-        (fn [] (om/update! update-state app)) 100)
-      )
+      (log "will mount ")
+      (let [comm (chan)]
+        (go (while true
+              (let [str (<! comm) ]
+                (log str)
+                )))
+        (anim-loop comm)))
 
     om/IDidMount
     (did-mount [_]
@@ -109,7 +126,7 @@
         (dom/h1 nil (:text app))
         (om/build container app)))))
 
-(def app-state
+(defonce app-state
   (atom
     {
      :title "CHEGG"
@@ -129,6 +146,7 @@
             {:x 35 :y 10 :yv 0 :xv 0 :col "black"}
             {:x 30 :y 90 :yv 0 :xv 0 :col "white"}
             ] } ))
+
 
 (defn main []
   (om/root
