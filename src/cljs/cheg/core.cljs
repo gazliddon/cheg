@@ -2,11 +2,23 @@
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [om.core :as om :include-macros true]
             [cljs.core.async :refer [put! <! >! chan]]
-            [om.dom :as dom :include-macros true]))
+            [om.dom :as dom :include-macros true]
+            [cheg.obj :as objs]
+            ))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn log [  a]
-  (.log js/console a) )
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; ;; Utils / needs own file
+; (defn make-requanim-starter [f]
+;   (fn []
+;     (do
+;       (f)
+;       (js/requestAnimationFrame f)))
+
+; (defn hook-to-reqanim [f]
+;   ((make-requanim-starter f)))
+
+; (defn log [  a]
+;   (.log js/console a) )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn draw-blob [ctx x y w h col]
@@ -21,48 +33,23 @@
       (let [{:keys [x y col]} o ]
         (draw-blob ctx x y w h col)))))
 
-
-(defn obj-add-vels [ {:keys [x y xv yv] :as obj} ]
-  (assoc
-    obj
-    :x (+ x xv) :y (+ y yv)))
-
-(defn obj-home-on-pos [cx cy {:keys [x y xv yv] :as obj} ]
-  (let [ scalefn (fn [p pv cp] (+ pv (* (- p cp) 0.001))) ]
-    (assoc
-      obj
-      :xv (scalefn x xv cx)
-      :yv (scalefn y yv cy))))
-
-
-
-
-(defn update-objs [player objs]
-  (let [ {:keys [x y]} player ]
-    (->> objs
-         (mapv obj-add-vels)
-         (mapv (partial obj-home-on-pos x y) ))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn om-update-objs [app]
   (let [{:keys [player objs]} app ]
-    (update-objs player objs)) )
+    (objs/update-objs player objs)) )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn render-all [ app owner node-ref ]
   (let
-
     [ surface  (om/get-node owner node-ref)
       width    (.-width surface)
       height   (.-height surface)
       objs     (:objs app) ]
-
     (doto
       (.getContext surface "2d")
       (aset "fillStyle" "grey")
       (.fillRect 0 0 width height)
       (draw-objs objs))))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn header [ app owner ]
@@ -71,29 +58,20 @@
     (render [ this ]
       (dom/h1 nil (:title app)))))
 
-
-(defn anim-loop [comm]
-  (let [fun (fn [] (do
-                    (js/requestAnimationFrame
-                      #(anim-loop comm)
-                      100
-                      )
-                    ))]
-    (go 
-      (>! comm :anim))
-    (fun)))
-
 (defn canvas [ app owner ]
   (reify
-    om/IWillMount
-    (will-mount [_]
-      (log "will mount ")
-      (let [comm (chan)]
-        (go (while true
-              (let [str (<! comm) ]
-                (log str)
-                )))
-        (anim-loop comm)))
+    ; om/IWillMount
+    ; (will-mount [_]
+    ;   (log "will mount ")
+    ;   (let [comm (chan)]
+    ;     (go (while true
+    ;           (let [str (<! comm) ]
+    ;             (log str)
+    ;             )))
+    ;     (hook-to-reqanim
+    ;       (fn []
+    ;         (go (>! comm :anim)))
+    ;       )
 
     om/IDidMount
     (did-mount [_]
@@ -128,21 +106,10 @@
         (dom/h1 nil (:text app))
         (om/build container app)))))
 
-
-(def obj {:x 30 :y 20 :yv 1 :xv -1 :col "yellow"})
-
-(def objs2 [
-            {:x 30 :y 20 :xv 0.1 :yv 0.5 :col "yellow"}
-            {:x 31 :y 30 :xv 0.2 :yv 0.6 :col "blue"}
-            {:x 35 :y 10 :xv 0.3 :yv 0.7 :col "black"}
-            {:x 30 :y 90 :xv 0.4 :yv 0.8 :col "white"}
-            ])
-
 (defonce app-state
   (atom
     {
-     :title "CHEGG"
-
+     :title "cheg"
      :player {
               :x 100
               :y 100
@@ -156,7 +123,6 @@
             {:x 35 :y 10 :yv 0 :xv 0 :col "black"}
             {:x 30 :y 90 :yv 0 :xv 0 :col "white"}
             ] } ))
-
 
 (defn main []
   (om/root
