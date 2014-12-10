@@ -1,7 +1,7 @@
-(ns tester.server-spec
+(ns cheg.server-spec
   (:require [speclj.core :refer :all]
-            [tester.server :refer :all]))
+            [cheg.server :refer :all]))
 
 (describe "Server test"
-          (it "should always pas"
+          (it "should always pass"
               (should= 0 0 )))
