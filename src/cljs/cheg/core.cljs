@@ -21,7 +21,7 @@
       (let [{:keys [x y col]} o ]
         (draw-blob ctx x y w h col)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn obj-add-vels [ {:keys [x y xv yv] :as obj} ]
   (assoc
     obj
