@@ -22,24 +22,26 @@
         (draw-blob ctx x y w h col)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn update-vels [ {:keys [x y xv yv] :as obj} ]
+(defn obj-add-vels [ {:keys [x y xv yv] :as obj} ]
   (assoc
     obj
     :x (+ x xv) :y (+ y yv)))
 
-(defn home [cx cy {:keys [x y xv yv] :as obj} ]
-  (let [ scalefn (fn [p pv cp] (+ pv (* (- p cp) 0.1))) ]
+(defn obj-home-on-pos [cx cy {:keys [x y xv yv] :as obj} ]
+  (let [ scalefn (fn [p pv cp] (+ pv (* (- p cp) 0.001))) ]
     (assoc
       obj
       :xv (scalefn x xv cx)
       :yv (scalefn y yv cy))))
 
+
+
+
 (defn update-objs [player objs]
-  (let [ {:keys [px py]} player ]
-    (vec 
-      (->> objs
-           (map update-vels)
-           (map (partial home px py) )))))
+  (let [ {:keys [x y]} player ]
+    (->> objs
+         (mapv obj-add-vels)
+         (mapv (partial obj-home-on-pos x y) ))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn om-update-objs [app]
@@ -126,16 +128,24 @@
         (dom/h1 nil (:text app))
         (om/build container app)))))
 
+
+(def obj {:x 30 :y 20 :yv 1 :xv -1 :col "yellow"})
+
+(def objs2 [
+            {:x 30 :y 20 :xv 0.1 :yv 0.5 :col "yellow"}
+            {:x 31 :y 30 :xv 0.2 :yv 0.6 :col "blue"}
+            {:x 35 :y 10 :xv 0.3 :yv 0.7 :col "black"}
+            {:x 30 :y 90 :xv 0.4 :yv 0.8 :col "white"}
+            ])
+
 (defonce app-state
   (atom
     {
      :title "CHEGG"
-     :center-x 100
-     :center-y 100
 
      :player {
               :x 100
-              :v 100
+              :y 100
               :xv 0
               :yv 0
               }
