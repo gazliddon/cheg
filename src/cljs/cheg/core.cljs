@@ -16,6 +16,9 @@
 (defn log [a]
   (.log js/console a) )
 
+(defn rand-range [low hi]
+  (+ low  (rand (- hi low))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn draw-blob [ctx x y w h col]
@@ -29,7 +32,6 @@
     (doseq [o objs]
       (let [{:keys [x y col]} o ]
         (draw-blob ctx x y w h col)))))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn render-all [ game-state surface ]
@@ -56,7 +58,6 @@
     (render [ this ]
       (dom/h1 nil (:title app)))))
 
-
 (defn stats [ game owner ]
   (reify
     om/IInitState
@@ -65,9 +66,13 @@
 
     om/IWillReceiveProps
     (will-receive-props [ this next-props ]
-      (println "will receive props!")
-      (om/set-state! this :text (str (count (:objs next-props))))
-      )
+      (let [nobjs (count ( :objs next-props ))
+            player (:player next-props)
+            px (:x player)
+            py (:y player)
+            pstr (str "{ " px "," px " }")
+            status (str "There are " nobjs " objs, player is at " pstr)]
+      (om/set-state! owner :text status)))
 
     om/IRenderState
     (render-state [ _ state ]
@@ -110,11 +115,10 @@
         (dom/h1 nil (:text app))
         (om/build container app)))))
 
-(defonce app-state
+(def app-state
   (atom {
          :updating false
          :game-state {
-                      :refresh (chan)
                       :player { :x 100 :y 100 :xv 0.1 :yv 0.1 }
 
                       :objs [
@@ -128,15 +132,26 @@
          :title "cheg"
          }))
 
+
+(def cols
+  ["yellow"
+   "red"
+   "orange"
+   "green"
+   "blue"
+   "white"
+   "purple"])
+
 (defn update []
   (let [game     (:game-state @app-state)
         player   (:player game)
         objs     (:objs game)
         new-objs (objs/update-objs player objs) ]
-    (swap! app-state merge {:game-state {:objs new-objs}} game)))
+    (swap! app-state assoc-in [:game-state :objs] new-objs)))
 
 (defn mk-obj [x y]
-  { :x x :y y :xv 0 :yv 0 :col "green"})
+  { :x x :y y :xv (rand-range -9 9) :yv (rand-range -9 9) :col (rand-nth cols)})
+
 
 (defn add-obj [x y]
   (let [obj        (mk-obj x y)
@@ -145,6 +160,13 @@
   
   (swap! app-state assoc-in [:game-state :objs] new-objs))
   "done")
+
+(defn add-rand-objs [n]
+  (dotimes [_ n]
+    (add-obj (rand 100) (rand 100))))
+
+(defn kill-objs []
+  (swap! app-state assoc-in [:game-state :objs] []))
 
 (defn main []
   (om/root
