@@ -8,17 +8,12 @@
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; ;; Utils / needs own file
-; (defn make-requanim-starter [f]
-;   (fn []
-;     (do
-;       (f)
-;       (js/requestAnimationFrame f)))
+(defn hook-to-reqanim [f]
+  (f)
+  (js/requestAnimationFrame #(hook-to-reqanim f)))
 
-; (defn hook-to-reqanim [f]
-;   ((make-requanim-starter f)))
-
-; (defn log [  a]
-;   (.log js/console a) )
+(defn log [  a]
+  (.log js/console a) )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn draw-blob [ctx x y w h col]
@@ -60,18 +55,18 @@
 
 (defn canvas [ app owner ]
   (reify
-    ; om/IWillMount
-    ; (will-mount [_]
-    ;   (log "will mount ")
-    ;   (let [comm (chan)]
-    ;     (go (while true
-    ;           (let [str (<! comm) ]
-    ;             (log str)
-    ;             )))
-    ;     (hook-to-reqanim
-    ;       (fn []
-    ;         (go (>! comm :anim)))
-    ;       )
+    om/IWillMount
+    (will-mount [_]
+      (log "will mount ")
+                         
+      (let [comm        (chan) ]
+
+        (go (while true
+              (let [str (<! comm) ] (log str))))
+
+        (hook-to-reqanim
+          #(go
+             (>! comm "anim")))))
 
     om/IDidMount
     (did-mount [_]

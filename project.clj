@@ -4,7 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
-  :source-paths ["src/clj"]
+  :source-paths ["src/clj" "target/generated/clj" "target/generated/cljx"]
 
   :test-paths ["spec/clj"]
 
@@ -24,7 +24,7 @@
 
   :uberjar-name "cheg.jar"
 
-  :cljsbuild {:builds {:app {:source-paths ["src/cljs"]
+  :cljsbuild {:builds {:app {:source-paths ["src/cljs" "target/generated/cljs"]
                              :compiler {:output-to     "resources/public/js/app.js"
                                         :output-dir    "resources/public/js/out"
                                         :source-map    "resources/public/js/out.js.map"
@@ -42,10 +42,12 @@
                                   [speclj "3.1.0"]]
 
                    :repl-options {:init-ns cheg.server
-                                  :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
+                                  :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl
+                                                     cljx.repl-middleware/wrap-cljx]}
 
                    :plugins [[lein-figwheel "0.1.6-SNAPSHOT"]
-                             [speclj "3.1.0"]]
+                             [speclj "3.1.0"]
+                             [com.keminglabs/cljx "0.4.0" :exclusions [org.clojure/clojure]]]
 
                    :figwheel {:http-server-root "public"
                               :server-port 3449
@@ -68,10 +70,21 @@
                                       :notify-command ["phantomjs"  "bin/speclj" "resources/public/js/app_spec.js"]}}}
 
 
-                   :test-commands {"spec" ["phantomjs" "bin/speclj" "resources/public/js/app_spec.js"]}}
+                   :test-commands {"spec" ["phantomjs" "bin/speclj" "resources/public/js/app_spec.js"]}
+
+                   :hooks [cljx.hooks]
+
+
+                   :cljx {:builds [{:source-paths ["src/cljx"]
+                                    :output-path "target/generated/clj"
+                                    :rules :clj}
+                                   {:source-paths ["src/cljx"]
+                                    :output-path "target/generated/cljs"
+                                    :rules :cljs}]}
+}
 
              :uberjar {:source-paths ["env/prod/clj"]
-                       :hooks [leiningen.cljsbuild  ]
+                       :hooks [cljx.hooks leiningen.cljsbuild  ]
                        :env {:production true}
                        :omit-source true
                        :aot :all
