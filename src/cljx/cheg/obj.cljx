@@ -27,7 +27,7 @@
     :x (+ x xv) :y (+ y yv)))
 
 (defn obj-home-on-pos [cx cy {:keys [x y xv yv] :as obj} ]
-  (let [ scalefn (fn [p pv cp] (+ pv (* (- p cp) 0.001))) ]
+  (let [ scalefn (fn [p pv cp] (+ pv (* (- cp p) 0.001))) ]
     (assoc
       obj
       :xv (scalefn x xv cx)

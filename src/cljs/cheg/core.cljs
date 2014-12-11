@@ -3,19 +3,21 @@
   (:require [om.core :as om :include-macros true]
             [cljs.core.async :refer [put! <! >! chan]]
             [om.dom :as dom :include-macros true]
-            [cheg.obj :as objs]
-            ))
-
+            [cheg.obj :as objs]))
+(enable-console-print!)
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; ;; Utils / needs own file
 (defn hook-to-reqanim [f]
   (f)
-  (js/requestAnimationFrame #(hook-to-reqanim f)))
+  (js/requestAnimationFrame
+    #(hook-to-reqanim f)))
 
-(defn log [  a]
+; Log to console
+(defn log [a]
   (.log js/console a) )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn draw-blob [ctx x y w h col]
   (doto ctx
     (aset "fillStyle" col)
@@ -23,58 +25,63 @@
     (.fillRect x y w h) ))
 
 (defn draw-objs [ctx objs]
-  (let [w 10 h 20]
+  (let [w 20 h 20]
     (doseq [o objs]
       (let [{:keys [x y col]} o ]
         (draw-blob ctx x y w h col)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn om-update-objs [app]
-  (let [{:keys [player objs]} app ]
-    (objs/update-objs player objs)) )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn render-all [ app owner node-ref ]
+(defn render-all [ game-state surface ]
   (let
-    [ surface  (om/get-node owner node-ref)
-      width    (.-width surface)
+    [ width    (.-width surface)
       height   (.-height surface)
-      objs     (:objs app) ]
+      objs     (:objs game-state) ]
     (doto
       (.getContext surface "2d")
-      (aset "fillStyle" "grey")
+      (aset "imageSmoothingEnabled" "false")
+      (aset "fillStyle" "#220022")
       (.fillRect 0 0 width height)
       (draw-objs objs))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn om-render-all [game-state owner node-ref]
+  (let [surface (om/get-node owner node-ref)
+        ctx (.getContext surface "2d")]
+    (render-all game-state surface))) 
+
 (defn header [ app owner ]
   (reify
     om/IRender
     (render [ this ]
       (dom/h1 nil (:title app)))))
 
-(defn canvas [ app owner ]
+
+(defn stats [ game owner ]
   (reify
-    om/IWillMount
-    (will-mount [_]
-      (log "will mount ")
-                         
-      (let [comm        (chan) ]
+    om/IInitState
+    (init-state [_]
+      {:text "nothing"})
 
-        (go (while true
-              (let [str (<! comm) ] (log str))))
+    om/IWillReceiveProps
+    (will-receive-props [ this next-props ]
+      (println "will receive props!")
+      (om/set-state! this :text (str (count (:objs next-props))))
+      )
 
-        (hook-to-reqanim
-          #(go
-             (>! comm "anim")))))
+    om/IRenderState
+    (render-state [ _ state ]
+      (dom/p nil (:text state)))))
 
+(defn canvas [ game owner ]
+  (reify
     om/IDidMount
     (did-mount [_]
-      (render-all app owner "surface-ref"))
+      (om-render-all game owner "surface-ref"))
 
     om/IDidUpdate
     (did-update [_ _ _]
-      (render-all app owner "surface-ref"))
+      (om-render-all game owner "surface-ref"))
 
     om/IRender
     (render [_]
@@ -84,13 +91,15 @@
 
 (defn container [app owner]
   (reify
-    om/IRender
-    (render [this]
-      (dom/div
-        #js {:className "container"}
-        (om/build header app)
-        (om/build canvas app)
-        (dom/p nil "Bottom")))))
+    om/IRenderState
+    (render-state [this state]
+      (let [game (:game-state app) ]
+        (dom/div
+          #js {:className "container"}
+          (om/build header app)
+          (om/build canvas game)
+          (om/build stats game)
+          (dom/p nil "Bottom"))))))
 
 (defn page [app owner]
   (reify
@@ -102,25 +111,47 @@
         (om/build container app)))))
 
 (defonce app-state
-  (atom
-    {
-     :title "cheg"
-     :player {
-              :x 100
-              :y 100
-              :xv 0
-              :yv 0
-              }
+  (atom {
+         :updating false
+         :game-state {
+                      :refresh (chan)
+                      :player { :x 100 :y 100 :xv 0.1 :yv 0.1 }
 
-     :objs [
-            {:x 30 :y 20 :yv 0 :xv 0 :col "yellow"}
-            {:x 31 :y 30 :yv 0 :xv 0 :col "blue"}
-            {:x 35 :y 10 :yv 0 :xv 0 :col "black"}
-            {:x 30 :y 90 :yv 0 :xv 0 :col "white"}
-            ] } ))
+                      :objs [
+                             {:x 30 :y 20 :yv 0.1 :xv 0.5 :col "yellow"}
+                             {:x 31 :y 30 :yv 0.2 :xv 0.6 :col "blue"}
+                             {:x 35 :y 10 :yv 0.3 :xv 0.7 :col "black"}
+                             {:x 30 :y 90 :yv 0.4 :xv 0.8 :col "white"}
+                             ]     
+                      }
+
+         :title "cheg"
+         }))
+
+(defn update []
+  (let [game     (:game-state @app-state)
+        player   (:player game)
+        objs     (:objs game)
+        new-objs (objs/update-objs player objs) ]
+    (swap! app-state merge {:game-state {:objs new-objs}} game)))
+
+(defn mk-obj [x y]
+  { :x x :y y :xv 0 :yv 0 :col "green"})
+
+(defn add-obj [x y]
+  (let [obj        (mk-obj x y)
+        objs       (get-in @app-state [:game-state :objs])
+        new-objs   (into objs [obj]) ]
+  
+  (swap! app-state assoc-in [:game-state :objs] new-objs))
+  "done")
 
 (defn main []
   (om/root
     page
     app-state
-    {:target (. js/document (getElementById "app"))}))
+    {:target (. js/document (getElementById "app"))})
+
+  (when (not (:updating @app-state))
+    (swap! app-state assoc :updating true)
+    (hook-to-reqanim update)) )
