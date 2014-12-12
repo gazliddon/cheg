@@ -42,3 +42,34 @@
        (mapv obj-add-vels))))
 
 
+(def cols
+  ["yellow"
+   "red"
+   "orange"
+   "green"
+   "blue"
+   "white"
+   "purple"])
+
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; ;; Utils / needs own file
+(defn rand-range [low hi]
+  (+ low  (rand (- hi low))))
+
+(defn mkobj [x y]
+  { :x x :y y :xv (rand-range -9 9) :yv (rand-range -9 9) :col (rand-nth cols)})
+
+; (defn add-obj [x y]
+;   (let [obj        (mkobj x y)
+;         objs       (get-in @app-state [:game-state :objs])
+;         new-objs   (into objs [obj]) ]
+  
+;   (swap! app-state assoc-in [:game-state :objs] new-objs))
+;   "done")
+
+; (defn add-rand-objs [n]
+;   (dotimes [_ n]
+;     (add-obj (rand 100) (rand 100))))
+
+; (defn kill-objs []
+;   (swap! app-state assoc-in [:game-state :objs] []))
