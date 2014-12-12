@@ -156,8 +156,11 @@
           (om/build header app)
           (om/build canvas game)
           (om/build stats game)
-          (om/build action-button {:text "action!"
+          (om/build action-button {:text "Add objs"
                                    :action (fn [] (send-game-message :add-objs))
+                                   })
+          (om/build action-button {:text "kill objs"
+                                   :action (fn [] (send-game-message :kill-objs))
                                    })
           (om/build pause-button game))))))
 
