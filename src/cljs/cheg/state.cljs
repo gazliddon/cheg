@@ -1,4 +1,5 @@
 (ns cheg.state
+  (:require-macros [cljs.core.async.macros :refer [go go-loop]])
   (:require 
     [cheg.gfx :as gfx]
     [om.dom :as dom :include-macros true]
@@ -16,6 +17,11 @@
 
              :updating false
 
+             :stats {:num-objs 0
+                     :px 10
+                     :py 10
+                     }
+
              :game-state {:messages (chan)
                           :paused false
                           :player -player
@@ -28,8 +34,7 @@
 
 (defn send-game-message [m v]
   (let [ch (get-in @app-state [:game-state :messages])]
-    (put! ch [m v])
-    ))
+    (put! ch [m v])))
 
 (defn -mk-toggle-fn [state addr]
   (fn []

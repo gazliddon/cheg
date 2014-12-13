@@ -123,12 +123,16 @@
       (om/build action-button {:text (get-paused-text paused)
                                :action toggle-pause-state }))))
 
+
+(def *repaints* (atom 0))
+
 (defn get-stats-str [{:keys [objs player time]}]
   (let [px (:x player)
         py (:y player)
         pstr (str "{ " px "," px " }")
         ]
-    (str (count objs) " objs: player: " pstr " time:" time)))
+    (swap! *repaints* inc)
+    (str (count objs) " objs: player: " pstr " " @*repaints* )))
 
 (defn stats [ game owner ]
   (reify
@@ -178,7 +182,7 @@
                                    :action (fn [] (send-game-message :add-objs nil))
                                    })
           (om/build action-button {:text "kill objs"
-                                   :action (fn [] (send-game-message :kill-objs nil))
+                                   :action (fn [] (send-game-message :kill-objs 1))
                                    })
           (om/build pause-button game)
           )))))
@@ -214,14 +218,13 @@
 (defn handle-msg [m-to-f [m v]]
   (let [func (m m-to-f)]
     (when func
-      (println "Calling!3")
       (func v))))
 
 (def game-msg-to-func
-  {:toggle-pause toggle-pause-state
-   :add-objs add-random-jumpy!
-   :kill-objs kill-objs!
-   :peturb-objs peturb-objs!})
+  {:toggle-pause (fn [_] (toggle-pause-state )) 
+   :add-objs     (fn [_] ( add-random-jumpy! ))
+   :kill-objs    (fn [_ ] ( kill-objs! ))
+   })
 
 (def handle-game-msg (partial handle-msg game-msg-to-func))
 
@@ -252,7 +255,7 @@
   (go-loop
     []
     (let [game (:game-state @app-state)
-          [msg val] (<! (:messages game)) ]
+          msg (<! (:messages game)) ]
       (handle-game-msg msg)
       (recur)))
 
