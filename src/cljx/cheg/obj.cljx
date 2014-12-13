@@ -1,6 +1,26 @@
 (ns cheg.obj)
 
-(def obj-needs [:x :y :xv :yv ])
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Protocols
+(defprotocol IRenderContext
+  (clear [ctx col])
+  (get-img [ctx image-id])
+  (static-img [ctx x y img]))
+
+(defprotocol ICreate
+  (create [obj]))
+
+(defprotocol IRender
+  (render [obj ctx time-now]))
+
+(defprotocol IUpdate
+  (update [obj time-delta]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def base-obj
+  {:x 0 :y 0 :xv 0 :yv 0 })
+
+(def obj-needs (keys base-obj))
 
 (defn has-all-these? [obj needs]
   (not (some false? (map #(contains? obj %) needs))))
@@ -33,43 +53,30 @@
       :xv (scalefn x xv cx)
       :yv (scalefn y yv cy))))
 
-(defn update-objs [player objs]
-  (let [px (:x player)
-        py (:y player)
-        homefn (fn [o] (obj-home-on-pos px py o))]
+(defn obj-get-frame [{:keys [ start-time imgs ]} time-now ]
+  (let [speed 0.1
+        tm-passed (- start-time time-now)
+        idx (/ tm-passed speed)
+        idx-mod (mod idx (count imgs)) ]
+    (nth imgs idx-mod)))
+
+(defn update-objs [{:keys [x y]} objs]
+  (let [ homefn (fn [o] (obj-home-on-pos x y o))]
   (->> objs
        (mapv homefn)
        (mapv obj-add-vels))))
 
+(defn create-obj [obj]
+  (if (satisfies? ICreate obj)
+    (create obj)
+    obj))
 
-(def cols
-  ["yellow"
-   "red"
-   "orange"
-   "green"
-   "blue"
-   "white"
-   "purple"])
+(defn render-objs [render-ctx objs]
+  (when (satisfies? IRenderContext render-ctx)
+    (doseq [ o (filter #(satisfies? IRender %) objs)]
+      (render o render-ctx 0))))
 
-; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; ;; Utils / needs own file
-(defn rand-range [low hi]
-  (+ low  (rand (- hi low))))
+(defn build-obj [rfobj]
+  (-> base-obj
+      (create-obj)))
 
-(defn mkobj [x y]
-  { :x x :y y :xv (rand-range -9 9) :yv (rand-range -9 9) :col (rand-nth cols)})
-
-; (defn add-obj [x y]
-;   (let [obj        (mkobj x y)
-;         objs       (get-in @app-state [:game-state :objs])
-;         new-objs   (into objs [obj]) ]
-  
-;   (swap! app-state assoc-in [:game-state :objs] new-objs))
-;   "done")
-
-; (defn add-rand-objs [n]
-;   (dotimes [_ n]
-;     (add-obj (rand 100) (rand 100))))
-
-; (defn kill-objs []
-;   (swap! app-state assoc-in [:game-state :objs] []))

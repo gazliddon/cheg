@@ -15,6 +15,7 @@
                  [compojure "1.2.0"]
                  [enlive "1.1.5"]
                  [om "0.7.3"]
+                 [prismatic/dommy "1.0.0"]
                  [environ "1.0.0"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
@@ -33,7 +34,7 @@
                                         :optimizations :none
                                         :pretty-print  true}}}}
 
-  :profiles {:dev {:source-paths ["env/dev/clj"]
+  :profiles { :dev {:source-paths ["env/dev/clj"]
 
                    :dependencies [[figwheel "0.1.6-SNAPSHOT"]
                                   [com.cemerick/piggieback "0.1.3"]
@@ -47,6 +48,7 @@
 
                    :plugins [[lein-figwheel "0.1.6-SNAPSHOT"]
                              [speclj "3.1.0"]
+                             [lein-pdo "0.1.1"]
                              [com.keminglabs/cljx "0.4.0" :exclusions [org.clojure/clojure]]]
 
                    :figwheel {:http-server-root "public"
@@ -81,7 +83,7 @@
                                    {:source-paths ["src/cljx"]
                                     :output-path "target/generated/cljs"
                                     :rules :cljs}]}
-}
+                   }
 
              :uberjar {:source-paths ["env/prod/clj"]
                        :hooks [cljx.hooks leiningen.cljsbuild  ]

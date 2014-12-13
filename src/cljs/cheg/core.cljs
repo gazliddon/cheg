@@ -3,44 +3,20 @@
   (:require [om.core :as om :include-macros true]
             [cljs.core.async :refer [put! <! >! chan]]
             [om.dom :as dom :include-macros true]
-            [cheg.obj :as objs]
+            [cheg.gfx :as gfx]
+            [cheg.obj :as obj]
+            [cheg.slider :as slider]
             [cheg.state :refer [app-state
                                 toggle-pause-state
-                                send-game-message]]
+                                send-game-message
+                                add-random-jumpy!
+                                ]]
             [cheg.webutils :refer [hook-to-reqanim log]]
             ))
 
 (enable-console-print!)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def cols
-  ["yellow"
-   "red"
-   "orange"
-   "green"
-   "blue"
-   "white"
-   "purple"])
-
-(defn rand-range [low hi]
-  (+ low  (rand (- hi low))))
-
-(defn mkobj [x y]
-  { :x x :y y :xv (rand-range -9 9) :yv (rand-range -9 9) :col (rand-nth cols)})
-
-(defn add-obj [x y]
-  (let [obj        (mkobj x y)
-        objs       (get-in @app-state [:game-state :objs])
-        new-objs   (into objs [obj]) ]
-  
-  (swap! app-state assoc-in [:game-state :objs] new-objs))
-  "done")
-
-(defn add-rand-objs [n]
-  (dotimes [_ n]
-    (add-obj (rand 100) (rand 100))))
-
 (defn kill-objs []
   (swap! app-state assoc-in [:game-state :objs] []))
 
@@ -50,11 +26,19 @@
     (aset "fillStyle" col)
     (.fillRect x y w h) ))
 
+(defn draw-spr [ctx x y img]
+  (let [w 100
+        h 100]
+  (doto ctx
+    (.drawImage img x y w h))))
+
 (defn draw-objs [ctx objs]
-  (let [w 20 h 20]
+  (let [time-now (get-in @app-state [:game-state :time ])]
     (doseq [o objs]
-      (let [{:keys [x y col]} o ]
-        (draw-blob ctx x y w h col)))))
+      (let [{:keys [x y imgs ]} o
+            img (obj/obj-get-frame o time-now)]
+        (draw-spr ctx x y img)))  )
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn render-all [ game-state surface ]
@@ -62,9 +46,9 @@
     [ width    (.-width surface)
       height   (.-height surface)
       objs     (:objs game-state) ]
-    (doto
+    (doto 
       (.getContext surface "2d")
-      (aset "fillStyle" "#220022")
+      (aset "fillStyle" "#880088")
       (.fillRect 0 0 width height)
       (draw-objs objs))))
 
@@ -85,7 +69,6 @@
   (if b
     "unpause"
     "pause"))
-
 
 (defn action-button [app owner]
   (reify 
@@ -108,12 +91,12 @@
       (om/build action-button {:text (get-paused-text paused)
                                :action toggle-pause-state }))))
 
-(defn get-stats-str [{:keys [objs player]}]
+(defn get-stats-str [{:keys [objs player time]}]
   (let [px (:x player)
         py (:y player)
         pstr (str "{ " px "," px " }")
         ]
-    (str "There are " (count objs) " objs, player is at " pstr)))
+    (str (count objs) " objs: player: " pstr " time:" time)))
 
 (defn stats [ game owner ]
   (reify
@@ -133,18 +116,21 @@
   (reify
     om/IDidMount
     (did-mount [_]
-      (om-render-all game owner "surface-ref"))
+      (let [surface (om/get-node owner "surface-ref") ]
+        (om/set-state! owner :surface surface)
+        (render-all game surface)))
 
     om/IDidUpdate
     (did-update [_ _ _]
-      (om-render-all game owner "surface-ref"))
+      (render-all game (om/get-state owner :surface)) )
 
     om/IRender
     (render [_]
       (dom/canvas #js {:className "canv"
+                       :width 400
+                       :height 400
                        :id        "surface"
                        :ref       "surface-ref" }))))
-
 
 (defn container [app owner]
   (reify
@@ -162,7 +148,10 @@
           (om/build action-button {:text "kill objs"
                                    :action (fn [] (send-game-message :kill-objs))
                                    })
-          (om/build pause-button game))))))
+          (om/build pause-button game)
+          )))))
+
+
 
 (defn page [app owner]
   (reify
@@ -180,9 +169,15 @@
   (let [game     (:game-state @app-state)
         player   (:player game)
         objs     (:objs game)
-        new-objs (objs/update-objs player objs) ]
+        new-objs (obj/update-objs player objs)
+        new-time (+ (/ 1 60) (:time game))
+        ]
     (when-not (:paused game)
-      (swap! app-state assoc-in [:game-state :objs] new-objs))))
+      (do
+      (swap! app-state assoc-in [:game-state :time] new-time)
+      (swap! app-state assoc-in [:game-state :objs] new-objs)   
+        )
+      )))
 
 
 (defn handle-msg [m-to-f m]
@@ -193,10 +188,42 @@
 
 (def game-msg-to-func
   {:toggle-pause toggle-pause-state
-   :add-objs #(add-rand-objs 100)
+   :add-objs add-random-jumpy!
    :kill-objs kill-objs})
 
 (def handle-game-msg (partial handle-msg game-msg-to-func))
+
+(defn canvas-renderer [surface]
+  (reify
+      obj/IRenderContext
+      (get-img [_ _]
+        nil)
+
+      (static-img [_ x y img]
+        (let [ctx (.getContext surface "2d")]
+          (.drawImage ctx img x y 100 100)))
+
+      (clear [_ col]
+        (let [ctx (.getContext surface "2d")
+              width (.-width surface)
+              height (.-height surface)]
+        (doto ctx
+          (aset "fillStyle" col)
+          (.fillRect 0 0 width height))))))
+
+(defn static-obj [ img-name x y ]
+  (reify
+    obj/ICreate
+    (create [o]
+      (assoc
+        o
+        :img (gfx/get-img :logo)
+        :x x
+        :y y))
+
+  obj/IRender
+  (render [{:keys [x y img]} ctx _]
+          (obj/static-img ctx x y img))))
 
 (defn main []
 
@@ -215,7 +242,7 @@
           msg (<! (:messages game)) ]
       (handle-game-msg msg)
       (recur)))
-  
+
   ;; Main message handler
   ; (go-loop [] 
   ;          (let [msg (<! (:messages @app-state))]
