@@ -3,6 +3,7 @@
   (:require [om.core :as om :include-macros true]
             [cljs.core.async :refer [put! <! >! chan]]
             [om.dom :as dom :include-macros true]
+            [cheg.canvasrenderer :as renderer]
             [cheg.gfx :as gfx]
             [cheg.obj :as obj]
             [cheg.slider :as slider]
@@ -179,7 +180,6 @@
         )
       )))
 
-
 (defn handle-msg [m-to-f m]
   (let [func (m m-to-f)]
     (when func
@@ -193,31 +193,13 @@
 
 (def handle-game-msg (partial handle-msg game-msg-to-func))
 
-(defn canvas-renderer [surface]
-  (reify
-      obj/IRenderContext
-      (get-img [_ _]
-        nil)
-
-      (static-img [_ x y img]
-        (let [ctx (.getContext surface "2d")]
-          (.drawImage ctx img x y 100 100)))
-
-      (clear [_ col]
-        (let [ctx (.getContext surface "2d")
-              width (.-width surface)
-              height (.-height surface)]
-        (doto ctx
-          (aset "fillStyle" col)
-          (.fillRect 0 0 width height))))))
-
-(defn static-obj [ img-name x y ]
+(defn static-obj [ img-id x y ]
   (reify
     obj/ICreate
-    (create [o]
+    (create [o ctx]
       (assoc
         o
-        :img (gfx/get-img :logo)
+        :img img-id
         :x x
         :y y))
 
@@ -226,7 +208,6 @@
           (obj/static-img ctx x y img))))
 
 (defn main []
-
   (om/root
     page
     app-state

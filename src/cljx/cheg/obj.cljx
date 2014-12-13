@@ -4,11 +4,10 @@
 ;; Protocols
 (defprotocol IRenderContext
   (clear [ctx col])
-  (get-img [ctx image-id])
   (static-img [ctx x y img]))
 
 (defprotocol ICreate
-  (create [obj]))
+  (create [obj ctx]))
 
 (defprotocol IRender
   (render [obj ctx time-now]))
