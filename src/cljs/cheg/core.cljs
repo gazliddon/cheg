@@ -18,7 +18,38 @@
 (enable-console-print!)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn kill-objs []
+
+(def zipvecs (partial map vector))
+
+(defn mk-vec-op [f]
+  (let [func (fn [[a b]] (f a b)) ]
+    (fn [a b]
+      (mapv func (zipvecs a b)))))
+
+(defn mk-vec-scalar-op [f]
+  (fn [a b]
+    ((mk-vec-op f) a (repeat b))))
+
+(def vec-add (mk-vec-op +))
+(def vec-sub (mk-vec-op +))
+(def vec-mul (mk-vec-op *))
+(def vec-div (mk-vec-op /))
+
+(def vec-add-s (mk-vec-scalar-op +))
+(def vec-sub-s (mk-vec-scalar-op +))
+(def vec-mul-s (mk-vec-scalar-op *))
+(def vec-div-s (mk-vec-scalar-op /))
+
+(defn peturb-obj [{:keys [x y xv yv] :as o} xy]
+  (let [[op ov] (mapv o [obj/get-pos obj/get-vel])
+        vadd (vec-mul-s  (vec-sub op xy) 0.1)
+        new-v (vec-add vadd ov)]
+    (obj/set-vel o new-v)))
+
+(defn peturb-objs [xy]
+  (mapv #(peturb-obj % xv) (get-in @app-state [:game-state :objs])))
+
+(defn kill-objs! []
   (swap! app-state assoc-in [:game-state :objs] []))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -33,12 +64,11 @@
   (doto ctx
     (.drawImage img x y w h))))
 
-(defn draw-objs [ctx objs]
-  (let [time-now (get-in @app-state [:game-state :time ])]
-    (doseq [o objs]
-      (let [{:keys [x y imgs ]} o
-            img (obj/obj-get-frame o time-now)]
-        (draw-spr ctx x y img)))  )
+(defn draw-objs [ctx objs time-now]
+  (doseq [o objs]
+    (let [{:keys [x y imgs ]} o
+          img (obj/obj-get-frame o time-now)]
+      (draw-spr ctx x y img)))
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -46,12 +76,13 @@
   (let
     [ width    (.-width surface)
       height   (.-height surface)
-      objs     (:objs game-state) ]
+      objs     (:objs game-state)
+      time-now (:time game-state)]
     (doto 
       (.getContext surface "2d")
       (aset "fillStyle" "#880088")
       (.fillRect 0 0 width height)
-      (draw-objs objs))))
+      (draw-objs objs time-now))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn om-render-all [game-state owner node-ref]
@@ -144,10 +175,10 @@
           (om/build canvas game)
           (om/build stats game)
           (om/build action-button {:text "Add objs"
-                                   :action (fn [] (send-game-message :add-objs))
+                                   :action (fn [] (send-game-message :add-objs nil))
                                    })
           (om/build action-button {:text "kill objs"
-                                   :action (fn [] (send-game-message :kill-objs))
+                                   :action (fn [] (send-game-message :kill-objs nil))
                                    })
           (om/build pause-button game)
           )))))
@@ -166,30 +197,31 @@
 
 
 
-(defn update []
+(defn update! []
   (let [game     (:game-state @app-state)
         player   (:player game)
         objs     (:objs game)
         new-objs (obj/update-objs player objs)
-        new-time (+ (/ 1 60) (:time game))
-        ]
+        new-time (+ (/ 1 60) (:time game)) ]
     (when-not (:paused game)
-      (do
-      (swap! app-state assoc-in [:game-state :time] new-time)
-      (swap! app-state assoc-in [:game-state :objs] new-objs)   
-        )
-      )))
+      (reset!
+        app-state
+        (-> @app-state
+            (assoc-in [:game-state :time] new-time )
+            (assoc-in [:game-state :objs] new-objs))
+        ))))
 
-(defn handle-msg [m-to-f m]
+(defn handle-msg [m-to-f [m v]]
   (let [func (m m-to-f)]
     (when func
-      (println "Calling!")
-      (func))))
+      (println "Calling!3")
+      (func v))))
 
 (def game-msg-to-func
   {:toggle-pause toggle-pause-state
    :add-objs add-random-jumpy!
-   :kill-objs kill-objs})
+   :kill-objs kill-objs!
+   :peturb-objs peturb-objs!})
 
 (def handle-game-msg (partial handle-msg game-msg-to-func))
 
@@ -215,12 +247,12 @@
 
   (when-not (:updating @app-state)
     (swap! app-state assoc :updating true)
-    (hook-to-reqanim update))
+    (hook-to-reqanim update!))
 
   (go-loop
     []
     (let [game (:game-state @app-state)
-          msg (<! (:messages game)) ]
+          [msg val] (<! (:messages game)) ]
       (handle-game-msg msg)
       (recur)))
 
@@ -230,3 +262,25 @@
   ;            (println msg))
   ;          (recur))
   )
+
+
+; The game is a series of one dimensional entities in the time axis
+; each entity has a position and a dimension (2d, t and variation?)
+
+; At anypoint in time in an entity record you can transform an entity into
+; a visual representation by invoking it's function
+; vs = ef(e, t)
+; the representation can be nil
+
+(defprotocol ITimeEntity
+  (create [_ t])
+  (appears? [_ t rng])
+  (draw [_ ctx t]))
+
+
+
+
+
+
+
+

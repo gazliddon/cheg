@@ -33,6 +33,19 @@
 (defn has-vel? [obj]
   (has-all-these? obj [:xv :yv]))
 
+
+(defn get-items [o korks]
+  (mapv korks o))
+
+(defn get-vel [o]
+  (get-items o [:xv :yv]))
+
+(defn set-vel [o [xv yv]]
+  (assoc o :xv xv :yv yv))
+
+(defn get-pos [o]
+  (get-items o [:x :y]))
+
 (defn obj-home-on-pos [cx cy {:keys [x y xv yv] :as obj} ]
   (let [ scalefn (fn [p pv cp] (+ pv (* (- p cp) 0.001))) ]
     (assoc
