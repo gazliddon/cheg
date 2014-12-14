@@ -3,8 +3,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Protocols
 (defprotocol IRenderContext
-  (clear [ctx col])
-  (static-img [ctx x y img]))
+  (clear [this col])
+  (static-img [this x y img]))
+
+
 
 (defprotocol ICreate
   (create [obj ctx]))
@@ -64,6 +66,14 @@
       obj
       :xv (scalefn x xv cx)
       :yv (scalefn y yv cy))))
+
+(defn mod-nth [col idx]
+  (nth col (mod idx (count col))))
+
+(defn get-frame [imgs start-time time-now ]
+  (let [speed 0.1
+        idx (/ (- time-now start-time) speed) ]
+    (mod-nth imgs idx)))
 
 (defn obj-get-frame [{:keys [ start-time imgs ]} time-now ]
   (let [speed 0.1

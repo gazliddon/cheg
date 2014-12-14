@@ -9,12 +9,10 @@
   { :x 100 :y 100 :xv 0 :yv 0 :col "green"}
   
   )
+
 (defonce app-state
-  (atom {
-             :messages (chan)
-
+  (atom {    :messages (chan)
              :mouse-pos [0 0]
-
              :updating false
 
              :stats {:num-objs 0
@@ -51,22 +49,31 @@
 (defn add-obj! [o]
   (append-item! [:game-state :objs] o))
 
-(defn mkspr [x y]
-  {
-   :start-time (get-in @app-state [:game-state :time])
-   :x x
-   :y y
-   :xv 0
-   :yv 0
-   :imgs (gfx/get-rand-anim)
-   :col "blue"
-   })
+(def spr-defaults {:start-time 0
+                   :x 0
+                   :y 0
+                   :vx 0
+                   :yv 0
+                   :imgs [:flap-f1]
+                   })
 
-(defn make-random-spr []
-  (mkspr (rand 100) (rand 100)))
+(defn mkspr [i]
+  (let [vals (merge spr-defaults i)]
+   vals))
 
-(defn make-random-jumpy []
-  (make-random-spr))
+(defn get-game-time []
+  (get-in @app-state [:gamestate :time]))
 
 (defn add-random-jumpy! []
-  (add-obj! (make-random-jumpy) ))
+  (add-obj!
+    (mkspr
+      {:start-time (get-game-time)
+       :x          (rand 100)
+       :y          (rand 100) })))
+
+(defn add-static-img! [x y img]
+  (add-obj!
+    (mkspr
+      {:x    x
+       :y    y
+       :imgs [img]  })))

@@ -3,21 +3,22 @@
             [cheg.obj :as obj]
             ))
 
-(enable-console-print!)
-
 (defn canvas-renderer [surface]
-  (reify
+  (let [ctx    (.getContext surface "2d")
+        width  (.-width surface)
+        height (.-height surface) ]
+
+    (reify
       obj/IRenderContext
       (clear [_ col]
-        (let [ctx (.getContext surface "2d")
-              width (.-width surface)
-              height (.-height surface)]
         (doto ctx
           (aset "fillStyle" col)
-          (.fillRect 0 0 width height))))  
+          (.fillRect 0 0 width height)))  
 
       (static-img [_ x y img]
-        (let [ctx (.getContext surface "2d")
-              img-obj ( gfx/get-img img )]
-          (.drawImage ctx img x y 100 100)))
-      ))
+        (let [i (gfx/get-img img)
+              iw (.-width i)
+              ih (.-height i)]
+          (.drawImage ctx i x y iw ih))))))
+
+

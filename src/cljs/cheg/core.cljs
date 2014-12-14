@@ -11,6 +11,7 @@
                                 toggle-pause-state
                                 send-game-message
                                 add-random-jumpy!
+                                add-static-img!
                                 ]]
             [cheg.webutils :refer [hook-to-reqanim log]]
             ))
@@ -18,7 +19,6 @@
 (enable-console-print!)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (def zipvecs (partial map vector))
 
 (defn mk-vec-op [f]
@@ -53,49 +53,11 @@
   (swap! app-state assoc-in [:game-state :objs] []))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn draw-blob [ctx x y w h col]
-  (doto ctx
-    (aset "fillStyle" col)
-    (.fillRect x y w h) ))
-
-(defn draw-spr [ctx x y img]
-  (let [w 100
-        h 100]
-  (doto ctx
-    (.drawImage img x y w h))))
-
-(defn draw-objs [ctx objs time-now]
-  (doseq [o objs]
-    (let [{:keys [x y imgs ]} o
-          img (obj/obj-get-frame o time-now)]
-      (draw-spr ctx x y img)))
-  )
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn render-all [ game-state surface ]
-  (let
-    [ width    (.-width surface)
-      height   (.-height surface)
-      objs     (:objs game-state)
-      time-now (:time game-state)]
-    (doto 
-      (.getContext surface "2d")
-      (aset "fillStyle" "#880088")
-      (.fillRect 0 0 width height)
-      (draw-objs objs time-now))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn om-render-all [game-state owner node-ref]
-  (let [surface (om/get-node owner node-ref)
-        ctx (.getContext surface "2d")]
-    (render-all game-state surface))) 
-
 (defn header [ app owner ]
   (reify
     om/IRender
     (render [ this ]
       (dom/h1 nil (:title app)))))
-
 
 (defn get-paused-text [b]
   (if b
@@ -123,50 +85,63 @@
       (om/build action-button {:text (get-paused-text paused)
                                :action toggle-pause-state }))))
 
-
-(def *repaints* (atom 0))
-
-(defn get-stats-str [{:keys [objs player time]}]
+(defn get-stats-state [{:keys [objs player time]}]
   (let [px (:x player)
         py (:y player)
-        pstr (str "{ " px "," px " }")
-        ]
-    (swap! *repaints* inc)
-    (str (count objs) " objs: player: " pstr " " @*repaints* )))
+        pstr (str "{ " px "," px " }") ]
+    {:text (str (count objs) " objs: player: " pstr )
+     :time time }))
 
 (defn stats [ game owner ]
   (reify
     om/IInitState
-    (init-state [_]
-      {:text (get-stats-str game)})
+    (init-state [_] (get-stats-state game))
 
     om/IWillReceiveProps
     (will-receive-props [ this next-props ]
-      (om/set-state! owner :text (get-stats-str next-props)))
+      (om/update-state! owner (fn [_]( get-stats-state next-props)) ))
 
     om/IRenderState
     (render-state [ _ state ]
       (dom/p nil (:text state)))))
 
+
+;; Flow is:
+;;   - render    : creates the canvas element with a reference we can get later
+;;   - did-mount : called after dom elements created
+;;                 sets the comp state to have surface and a renderer
+;;                 setting the state causes did-update to be called
+;;   - did-update  render everything - also triggered when @app-state :gamestate is updated
+
+(defn render-objs [r objs time-now]
+  (do
+    (obj/clear r "blue")
+    (doseq [{:keys [x y imgs start-time]} objs]
+      (let [id (obj/get-frame imgs start-time time-now)]
+      (obj/static-img r x y id)))))
+
 (defn canvas [ game owner ]
   (reify
     om/IDidMount
     (did-mount [_]
-      (let [surface (om/get-node owner "surface-ref") ]
-        (om/set-state! owner :surface surface)
-        (render-all game surface)))
+      (om/update-state!
+        owner
+        (fn [_]
+          {:renderer  (renderer/canvas-renderer (om/get-node owner "surface-ref"))
+           })))
 
     om/IDidUpdate
-    (did-update [_ _ _]
-      (render-all game (om/get-state owner :surface)) )
+    (did-update [_ {:keys [objs time]} _]
+      (let [ renderer (om/get-state owner :renderer) ]
+        (render-objs renderer objs time)))
 
     om/IRender
     (render [_]
       (dom/canvas #js {:className "canv"
-                       :width 400
-                       :height 400
+                       :width     800
+                       :height    400
                        :id        "surface"
-                       :ref       "surface-ref" }))))
+                       :ref       "surface-ref" } ))))
 
 (defn container [app owner]
   (reify
@@ -178,16 +153,16 @@
           (om/build header app)
           (om/build canvas game)
           (om/build stats game)
-          (om/build action-button {:text "Add objs"
-                                   :action (fn [] (send-game-message :add-objs nil))
-                                   })
-          (om/build action-button {:text "kill objs"
-                                   :action (fn [] (send-game-message :kill-objs 1))
-                                   })
+          (om/build action-button
+                    {:text "Add objs"
+                     :action (fn [] (send-game-message :add-objs nil)) })
+
+          (om/build action-button
+                    {:text "kill objs"
+                     :action (fn [] (send-game-message :kill-objs 1)) })
+
           (om/build pause-button game)
           )))))
-
-
 
 (defn page [app owner]
   (reify
@@ -196,10 +171,7 @@
       (dom/div
         nil
         (dom/h1 nil (:text app))
-        (om/build container app)
-        ))))
-
-
+        (om/build container app)))))
 
 (defn update! []
   (let [game     (:game-state @app-state)
@@ -211,9 +183,8 @@
       (reset!
         app-state
         (-> @app-state
-            (assoc-in [:game-state :time] new-time )
-            (assoc-in [:game-state :objs] new-objs))
-        ))))
+            (assoc-in [:game-state :time] new-time)
+            (assoc-in [:game-state :objs] new-objs) )))))
 
 (defn handle-msg [m-to-f [m v]]
   (let [func (m m-to-f)]
@@ -221,26 +192,11 @@
       (func v))))
 
 (def game-msg-to-func
-  {:toggle-pause (fn [_] (toggle-pause-state )) 
-   :add-objs     (fn [_] ( add-random-jumpy! ))
-   :kill-objs    (fn [_ ] ( kill-objs! ))
-   })
+  {:toggle-pause (fn [_] (toggle-pause-state)) 
+   :add-objs     (fn [_] (add-random-jumpy!))
+   :kill-objs    (fn [_] (kill-objs!))} )
 
 (def handle-game-msg (partial handle-msg game-msg-to-func))
-
-(defn static-obj [ img-id x y ]
-  (reify
-    obj/ICreate
-    (create [o ctx]
-      (assoc
-        o
-        :img img-id
-        :x x
-        :y y))
-
-  obj/IRender
-  (render [{:keys [x y img]} ctx _]
-          (obj/static-img ctx x y img))))
 
 (defn main []
   (om/root
@@ -249,6 +205,11 @@
     {:target (. js/document (getElementById "app"))})
 
   (when-not (:updating @app-state)
+
+    (add-static-img! 0 0 :logo )
+
+
+    
     (swap! app-state assoc :updating true)
     (hook-to-reqanim update!))
 
@@ -277,8 +238,16 @@
 
 (defprotocol ITimeEntity
   (create [_ t])
-  (appears? [_ t rng])
+  (appears? [_ lifetime])
   (draw [_ ctx t]))
+
+
+
+
+
+
+
+
 
 
 

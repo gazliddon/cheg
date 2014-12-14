@@ -26,9 +26,9 @@
   (mapv #(% -imgs) v))
 
 (def -anims 
-  { :flap (mk-anim [:flap-f1 :flap-f2 :flap-f3 :flap-f4])
-    :jump (mk-anim [:jump-f1])
-    :run  (mk-anim [:run-f1 :run-f2 :run-f3])
+  { :flap [:flap-f1 :flap-f2 :flap-f3 :flap-f4]
+    :jump [:jump-f1]
+    :run  [:run-f1 :run-f2 :run-f3]
     })
 
 (defn get-img [id]
