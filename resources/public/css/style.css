@@ -10,14 +10,14 @@ h1 {
 }
 
 .container {
-    width: 800px;
+    width: 1280px;
     margin: 0 auto;
     background-color: red;
 }
 
 #surface{
-    width: 800px;
-    height: 400px;
+    width: 1280px;
+    height: 720px;
     image-rendering: optimizeSpeed;             // Older versions of FF
     image-rendering: -moz-crisp-edges;          // FF 6.0+
     image-rendering: -webkit-optimize-contrast; // Safari

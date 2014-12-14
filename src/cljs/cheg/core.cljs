@@ -5,50 +5,36 @@
             [om.dom :as dom :include-macros true]
             [cheg.canvasrenderer :as renderer]
             [cheg.gfx :as gfx]
+            [cheg.vec :as vec]
             [cheg.obj :as obj]
             [cheg.slider :as slider]
             [cheg.state :refer [app-state
                                 toggle-pause-state
                                 send-game-message
                                 add-random-jumpy!
-                                add-static-img!
+                                mkspr
                                 ]]
             [cheg.webutils :refer [hook-to-reqanim log]]
             ))
 
 (enable-console-print!)
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def zipvecs (partial map vector))
+;; Some scr size values
 
-(defn mk-vec-op [f]
-  (let [func (fn [[a b]] (f a b)) ]
-    (fn [a b]
-      (mapv func (zipvecs a b)))))
+(def wscale 1)
+(def scr-width (* wscale 1280))
+(def scr-height (* wscale 720))
+(def scr-dims [scr-width scr-height])
+(def neg-scr-dims (vec/sub [0 0] scr-dims))
+(def get-scr-pos (partial gfx/get-offset neg-scr-dims))
 
-(defn mk-vec-scalar-op [f]
-  (fn [a b]
-    ((mk-vec-op f) a (repeat b))))
+(defn get-pos-perc [perc-pos] (vec/mul perc-pos scr-dims))
 
-(def vec-add (mk-vec-op +))
-(def vec-sub (mk-vec-op +))
-(def vec-mul (mk-vec-op *))
-(def vec-div (mk-vec-op /))
+(def bg-col "#60b0ff")
 
-(def vec-add-s (mk-vec-scalar-op +))
-(def vec-sub-s (mk-vec-scalar-op +))
-(def vec-mul-s (mk-vec-scalar-op *))
-(def vec-div-s (mk-vec-scalar-op /))
-
-(defn peturb-obj [{:keys [x y xv yv] :as o} xy]
-  (let [[op ov] (mapv o [obj/get-pos obj/get-vel])
-        vadd (vec-mul-s  (vec-sub op xy) 0.1)
-        new-v (vec-add vadd ov)]
-    (obj/set-vel o new-v)))
-
-(defn peturb-objs [xy]
-  (mapv #(peturb-obj % xv) (get-in @app-state [:game-state :objs])))
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn kill-objs! []
   (swap! app-state assoc-in [:game-state :objs] []))
 
@@ -59,16 +45,19 @@
     (render [ this ]
       (dom/h1 nil (:title app)))))
 
-(defn get-paused-text [b]
-  (if b
-    "unpause"
-    "pause"))
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn action-button [app owner]
   (reify 
     om/IRenderState
     (render-state [this _]
       (dom/button #js {:onClick (:action app)} (:text app))))  )
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn get-paused-text [b]
+  (if b
+    "unpause"
+    "pause"))
 
 (defn pause-button [app owner]
   (reify 
@@ -85,12 +74,14 @@
       (om/build action-button {:text (get-paused-text paused)
                                :action toggle-pause-state }))))
 
-(defn get-stats-state [{:keys [objs player time]}]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn get-stats-state [{:keys [objs player game-time]}]
   (let [px (:x player)
         py (:y player)
         pstr (str "{ " px "," px " }") ]
     {:text (str (count objs) " objs: player: " pstr )
-     :time time }))
+     :game-time game-time }))
 
 (defn stats [ game owner ]
   (reify
@@ -104,6 +95,58 @@
     om/IRenderState
     (render-state [ _ state ]
       (dom/p nil (:text state)))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn render-obj [r [x y] id spr-handle]
+  (let [offset (gfx/get-img-offset id spr-handle)
+        [nx ny] (vec/add [x y] offset)]
+    (obj/static-img r nx ny id)))
+
+
+(defn render-obj-list [r objs time-now]
+  (doseq [{:keys [imgs start-time spr-handle render-xform] :as o } objs]
+      (let [xfo (render-xform o time-now)
+            id (obj/obj-get-frame xfo time-now)
+            x (:x xfo)
+            y (:y xfo)
+            ]
+        (render-obj r [ x y ] id spr-handle)))
+  )
+
+(defn img-grid [{:keys [imgs x y] :as o} w h]
+  (let [img     [imgs]
+        pos     [x y]
+        dims    (gfx/get-dims img)]
+    (vec 
+      (for [ ix (range w) iy (range h)]
+        (let [[xx yy] (vec/add pos (vec/mul dims [ix iy]))]
+          (assoc o :x xx :y yy)
+          )))))
+
+(def titles
+  [ 
+   {:xv -80 :pos (get-pos-perc [0 -0.05] )    :img :sky1        :spr-handle :top-left }
+   {:xv -73 :pos (get-pos-perc [0 0.12] )     :img :sky2        :spr-handle :top-left }
+   {:xv 0 :pos (get-scr-pos :centered)    :img :logo        :spr-handle :centered }
+   {:xv -100 :pos (get-pos-perc [0 0.98]) :img :background2 :spr-handle :bottom-left }
+   {:xv -150 :pos (get-pos-perc [0 1.02]) :img :background1 :spr-handle :bottom-left } ]
+  )
+
+(defn tospr [{:keys [img pos xv] :as spr}]
+  (let [[x y] (:pos spr)]
+    (mkspr (assoc
+             spr
+             :imgs [img]
+             :render-xform
+             (fn [{keys [x] :as o} t]
+               (assoc o :x (+ x  (mod (* xv t) scr-width )) ))
+             :x x
+             :y y))))
+
+(def titles-sprs
+  (mapv tospr titles))
+
 
 
 ;; Flow is:
@@ -112,14 +155,6 @@
 ;;                 sets the comp state to have surface and a renderer
 ;;                 setting the state causes did-update to be called
 ;;   - did-update  render everything - also triggered when @app-state :gamestate is updated
-
-(defn render-objs [r objs time-now]
-  (do
-    (obj/clear r "blue")
-    (doseq [{:keys [x y imgs start-time]} objs]
-      (let [id (obj/get-frame imgs start-time time-now)]
-      (obj/static-img r x y id)))))
-
 (defn canvas [ game owner ]
   (reify
     om/IDidMount
@@ -127,19 +162,21 @@
       (om/update-state!
         owner
         (fn [_]
-          {:renderer  (renderer/canvas-renderer (om/get-node owner "surface-ref"))
-           })))
+          {:renderer  (renderer/canvas-renderer (om/get-node owner "surface-ref")) })))
 
     om/IDidUpdate
-    (did-update [_ {:keys [objs time]} _]
+    (did-update [_ {:keys [objs game-time]} _]
       (let [ renderer (om/get-state owner :renderer) ]
-        (render-objs renderer objs time)))
+        (obj/clear renderer bg-col)
+        (render-obj-list renderer titles-sprs game-time)
+        (render-obj-list renderer objs game-time)
+        ))
 
     om/IRender
     (render [_]
       (dom/canvas #js {:className "canv"
-                       :width     800
-                       :height    400
+                       :width     scr-width
+                       :height    scr-height
                        :id        "surface"
                        :ref       "surface-ref" } ))))
 
@@ -175,15 +212,14 @@
 
 (defn update! []
   (let [game     (:game-state @app-state)
-        player   (:player game)
-        objs     (:objs game)
-        new-objs (obj/update-objs player objs)
-        new-time (+ (/ 1 60) (:time game)) ]
+        {:keys [objs game-time]} game
+        new-objs (obj/update-objs objs game-time)
+        new-time (+ (/ 1 60) game-time) ]
     (when-not (:paused game)
       (reset!
         app-state
         (-> @app-state
-            (assoc-in [:game-state :time] new-time)
+            (assoc-in [:game-state :game-time] new-time)
             (assoc-in [:game-state :objs] new-objs) )))))
 
 (defn handle-msg [m-to-f [m v]]
@@ -205,11 +241,6 @@
     {:target (. js/document (getElementById "app"))})
 
   (when-not (:updating @app-state)
-
-    (add-static-img! 0 0 :logo )
-
-
-    
     (swap! app-state assoc :updating true)
     (hook-to-reqanim update!))
 
@@ -240,8 +271,6 @@
   (create [_ t])
   (appears? [_ lifetime])
   (draw [_ ctx t]))
-
-
 
 
 

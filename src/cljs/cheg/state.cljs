@@ -2,6 +2,7 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop]])
   (:require 
     [cheg.gfx :as gfx]
+    [cheg.obj :as obj]
     [om.dom :as dom :include-macros true]
     [cljs.core.async :refer [put! <! >! chan]] ))
 
@@ -24,7 +25,7 @@
                           :paused false
                           :player -player
                           :objs [] 
-                          :time 0
+                          :game-time 0
                           }
 
              :title "cheg"
@@ -50,11 +51,11 @@
   (append-item! [:game-state :objs] o))
 
 (def spr-defaults {:start-time 0
-                   :x 0
-                   :y 0
-                   :vx 0
-                   :yv 0
+                   :x 0 :y 0 :vx 0 :yv 0
                    :imgs [:flap-f1]
+                   :behaviour (fn [o] o)
+                   :spr-handle :top-left
+                   :render-xform      (fn [o game-time] o)
                    })
 
 (defn mkspr [i]
@@ -62,18 +63,26 @@
    vals))
 
 (defn get-game-time []
-  (get-in @app-state [:gamestate :time]))
+  (get-in @app-state [:gamestate :game-time]))
 
 (defn add-random-jumpy! []
   (add-obj!
     (mkspr
       {:start-time (get-game-time)
-       :x          (rand 100)
-       :y          (rand 100) })))
+       :behaviour   (fn [o game-time] (obj/obj-home-on-pos 100 100 o))
+       :spr-handle :top-left
+       :x           (rand 100)
+       :y           (rand 100) })))
 
 (defn add-static-img! [x y img]
   (add-obj!
     (mkspr
       {:x    x
        :y    y
+       :spr-handle :centered
        :imgs [img]  })))
+
+
+
+
+
