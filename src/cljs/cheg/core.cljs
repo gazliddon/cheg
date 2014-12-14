@@ -22,7 +22,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Some scr size values
-
 (def wscale 1)
 (def scr-width (* wscale 1280))
 (def scr-height (* wscale 720))
@@ -31,7 +30,6 @@
 (def get-scr-pos (partial gfx/get-offset neg-scr-dims))
 
 (defn get-pos-perc [perc-pos] (vec/mul perc-pos scr-dims))
-
 (def bg-col "#60b0ff")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -96,23 +94,15 @@
     (render-state [ _ state ]
       (dom/p nil (:text state)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-(defn render-obj [r [x y] id spr-handle]
-  (let [offset (gfx/get-img-offset id spr-handle)
-        [nx ny] (vec/add [x y] offset)]
-    (obj/static-img r nx ny id)))
-
-
 (defn render-obj-list [r objs time-now]
   (doseq [{:keys [imgs start-time spr-handle render-xform] :as o } objs]
       (let [xfo (render-xform o time-now)
             id (obj/obj-get-frame xfo time-now)
             x (:x xfo)
             y (:y xfo)
-            ]
-        (render-obj r [ x y ] id spr-handle)))
-  )
+            offset (gfx/get-img-offset id spr-handle)
+            [nx ny] (vec/add [x y] offset) ]
+    (obj/static-img r nx ny id)  )))
 
 (defn img-grid [{:keys [imgs x y] :as o} w h]
   (let [img     [imgs]
