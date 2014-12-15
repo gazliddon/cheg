@@ -118,16 +118,15 @@
 (defn parralax [xv pos-perc img spr-handle])
 
 (def titles
-  [ 
-   {:xv -85  :pos (get-pos-perc [0 -0.05] ) :img :sky1        :spr-handle :top-left :render strip-render}
-   {:xv -73  :pos (get-pos-perc [0 0.12] )  :img :sky2        :spr-handle :top-left :render strip-render}
-   {:xv -100 :pos (get-pos-perc [0 0.98])   :img :background2 :spr-handle :bottom-left :render strip-render}
-   {:xv -150 :pos (get-pos-perc [0 1.02])   :img :background1 :spr-handle :bottom-left :render strip-render} ]
-   ; {:xv 0    :pos (get-scr-pos :centered)   :img :logo        :spr-handle :centered }
-  )
+  [{:xv -85  :pos [0 -0.05] :img :sky1        :spr-handle :top-left :render strip-render}
+   {:xv -73  :pos [0 0.12]  :img :sky2        :spr-handle :top-left :render strip-render}
+   {:xv -100 :pos [0 0.98]  :img :background2 :spr-handle :bottom-left :render strip-render}
+   {:xv -150 :pos [0 1.02]  :img :background1 :spr-handle :bottom-left :render strip-render}
+   {:xv 0    :pos [0.5 0.5] :img :logo        :spr-handle :centered }
+   ] )
 
 (defn tospr [{:keys [img pos xv] :as spr}]
-  (let [[x y] (:pos spr) ]
+  (let [[x y] (get-pos-perc  pos) ]
     (mkspr (assoc spr :imgs [img] :x x :y y))))
 
 (def titles-sprs
@@ -139,7 +138,6 @@
 ;;                 sets the comp state to have surface and a renderer
 ;;                 setting the state causes did-update to be called
 ;;   - did-update  render everything - also triggered when @app-state :gamestate is updated
-
 
 (defn canvas [ game owner ]
   (reify

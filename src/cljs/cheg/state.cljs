@@ -78,14 +78,29 @@
 (defn get-game-time []
   (get-in @app-state [:game-state :game-time]))
 
+
+(defn homefn [init-pos amplitudes [phx phy] [vx vy] t]
+  (let [p1 [(Math/cos (+ phx (* t vx))) (Math/sin (+ phy (* t vy)))]
+        p2 (vec/mul amplitudes p1)
+        p3 (vec/add init-pos p2)]
+    p3))
+
 (defn add-random-jumpy! []
-  (add-obj!
-    (mkspr
-      {:start-time (get-game-time)
-       :behaviour   (fn [o game-time] (obj/obj-home-on-pos [100 100] o))
-       :spr-handle :top-left
-       :x           (rand 100)
-       :y           (rand 100) })))
+  (let [[x y] (vec/add [ (rand 400) (rand 100)] [400 400]) 
+        amp [(rand 300) (rand 300)]
+        pha [(rand 7) (rand 7)]
+        vel [(rand 3) (rand 3)]
+        ]
+    (add-obj!
+      (mkspr
+        {:start-time (get-game-time)
+         :behaviour   (fn [o game-time]
+                        (let [otime (- game-time (:start-time o))
+                              [x y] (homefn [x y] amp pha vel game-time)]
+                          (assoc o :x x :y y)))
+         :spr-handle :top-left
+         :x           x
+         :y           y }))))
 
 (defn add-static-img! [x y img]
   (add-obj!
