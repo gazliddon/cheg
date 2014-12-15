@@ -1,7 +1,5 @@
 (ns cheg.server-spec
-  (:require [speclj.core :refer :all]
-            [cheg.server :refer :all]
-            [cheg.obj :refer :all]
+  (:require [speclj.core]
             ))
 
 (describe "Server test"

@@ -1,24 +1,14 @@
 (ns cheg.vec)
 
-(def zipvecs (partial map vector))
+(defn add [ [ax ay] [bx by] ] [ (+ ax bx ) (+ ay by )])
+(defn sub [ [ax ay] [bx by] ] [ (- ax bx ) (- ay by )])
+(defn mul [ [ax ay] [bx by] ] [ (* ax bx ) (* ay by )])
+(defn div [ [ax ay] [bx by] ] [ (/ ax bx ) (/ ay by )])
+(defn vmod [ [ax ay] [bx by] ] [ (mod ax bx ) (mod ay by )])
 
-(defn mk-vec-op [f]
-  (let [func (fn [[a b]] (f a b)) ]
-    (fn [a b]
-      (mapv func (zipvecs a b)))))
-
-(defn mk-vec-scalar-op [f]
-  (fn [a b]
-    ((mk-vec-op f) a (repeat b))))
-
-(def add (mk-vec-op +))
-(def sub (mk-vec-op -))
-(def mul (mk-vec-op *))
-(def div (mk-vec-op /))
-
-(def add-s (mk-vec-scalar-op +))
-(def sub-s (mk-vec-scalar-op -))
-(def mul-s (mk-vec-scalar-op *))
-(def div-s (mk-vec-scalar-op /))
+(defn add-s [v s] (add v [s s]))
+(defn sub-s [v s] (sub v [s s]))
+(defn mul-s [v s] (mul v [s s]))
+(defn div-s [v s] (div v [s s]))
 
 

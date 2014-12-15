@@ -19,7 +19,6 @@
 
 (enable-console-print!)
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Some scr size values
 (def wscale 1)
@@ -93,51 +92,46 @@
     om/IRenderState
     (render-state [ _ state ]
       (dom/p nil (:text state)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn render-obj-list [r objs time-now]
-  (doseq [{:keys [imgs start-time spr-handle render-xform] :as o } objs]
-      (let [xfo (render-xform o time-now)
-            id (obj/obj-get-frame xfo time-now)
-            x (:x xfo)
-            y (:y xfo)
-            offset (gfx/get-img-offset id spr-handle)
-            [nx ny] (vec/add [x y] offset) ]
-    (obj/static-img r nx ny id)  )))
+  (doseq [{:keys [render ] :as o } objs]
+    (render r o time-now)))
 
-(defn img-grid [{:keys [imgs x y] :as o} w h]
-  (let [img     [imgs]
-        pos     [x y]
-        dims    (gfx/get-dims img)]
-    (vec 
-      (for [ ix (range w) iy (range h)]
-        (let [[xx yy] (vec/add pos (vec/mul dims [ix iy]))]
-          (assoc o :x xx :y yy)
-          )))))
+(defn strip-render [r {:keys [xv x y imgs spr-handle] :as o} time-now]
+  (let [pos [x y]
+        id (obj/obj-get-frame o time-now)
+        [w h] (gfx/get-img-dims id)
+        offset (gfx/get-img-offset id spr-handle)
+        time-offset (vec/mul [xv 0] [ time-now time-now])
+        with-offsets (vec/add pos (vec/add time-offset offset))
+        max-idx  (+ 2  (/ scr-width w))
+        wrap-x (* max-idx w) ]
+
+    (doseq [ix (range max-idx) ]
+      (let [ [nx ny] (vec/add with-offsets [(* ix w ) 0] ) ]
+        (obj/static-img r (- (mod nx wrap-x) w)  ny id)
+        )))
+  )
+
+
+(defn parralax [xv pos-perc img spr-handle])
 
 (def titles
   [ 
-   {:xv -80 :pos (get-pos-perc [0 -0.05] )    :img :sky1        :spr-handle :top-left }
-   {:xv -73 :pos (get-pos-perc [0 0.12] )     :img :sky2        :spr-handle :top-left }
-   {:xv 0 :pos (get-scr-pos :centered)    :img :logo        :spr-handle :centered }
-   {:xv -100 :pos (get-pos-perc [0 0.98]) :img :background2 :spr-handle :bottom-left }
-   {:xv -150 :pos (get-pos-perc [0 1.02]) :img :background1 :spr-handle :bottom-left } ]
+   {:xv -85  :pos (get-pos-perc [0 -0.05] ) :img :sky1        :spr-handle :top-left :render strip-render}
+   {:xv -73  :pos (get-pos-perc [0 0.12] )  :img :sky2        :spr-handle :top-left :render strip-render}
+   {:xv -100 :pos (get-pos-perc [0 0.98])   :img :background2 :spr-handle :bottom-left :render strip-render}
+   {:xv -150 :pos (get-pos-perc [0 1.02])   :img :background1 :spr-handle :bottom-left :render strip-render} ]
+   ; {:xv 0    :pos (get-scr-pos :centered)   :img :logo        :spr-handle :centered }
   )
 
 (defn tospr [{:keys [img pos xv] :as spr}]
-  (let [[x y] (:pos spr)]
-    (mkspr (assoc
-             spr
-             :imgs [img]
-             :render-xform
-             (fn [{keys [x] :as o} t]
-               (assoc o :x (+ x  (mod (* xv t) scr-width )) ))
-             :x x
-             :y y))))
+  (let [[x y] (:pos spr) ]
+    (mkspr (assoc spr :imgs [img] :x x :y y))))
 
 (def titles-sprs
   (mapv tospr titles))
-
-
 
 ;; Flow is:
 ;;   - render    : creates the canvas element with a reference we can get later
@@ -145,6 +139,8 @@
 ;;                 sets the comp state to have surface and a renderer
 ;;                 setting the state causes did-update to be called
 ;;   - did-update  render everything - also triggered when @app-state :gamestate is updated
+
+
 (defn canvas [ game owner ]
   (reify
     om/IDidMount
@@ -200,17 +196,18 @@
         (dom/h1 nil (:text app))
         (om/build container app)))))
 
+
+(defn update-game [{:keys [game-time objs] :as game} dt]
+  (let [new-time (+ game-time dt)]
+    (assoc
+      game
+      :objs (obj/update-objs objs new-time)
+      :game-time new-time)))
+
 (defn update! []
-  (let [game     (:game-state @app-state)
-        {:keys [objs game-time]} game
-        new-objs (obj/update-objs objs game-time)
-        new-time (+ (/ 1 60) game-time) ]
+  (let [ game (:game-state @app-state) ]
     (when-not (:paused game)
-      (reset!
-        app-state
-        (-> @app-state
-            (assoc-in [:game-state :game-time] new-time)
-            (assoc-in [:game-state :objs] new-objs) )))))
+      (swap! app-state assoc :game-state (update-game game (/ 1 60))))))
 
 (defn handle-msg [m-to-f [m v]]
   (let [func (m m-to-f)]
@@ -232,7 +229,8 @@
 
   (when-not (:updating @app-state)
     (swap! app-state assoc :updating true)
-    (hook-to-reqanim update!))
+    (hook-to-reqanim update!)
+    )
 
   (go-loop
     []

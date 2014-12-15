@@ -15,7 +15,6 @@
                  [compojure "1.2.0"]
                  [enlive "1.1.5"]
                  [om "0.7.3"]
-                 [prismatic/dommy "1.0.0"]
                  [environ "1.0.0"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
@@ -44,12 +43,13 @@
 
                    :repl-options {:init-ns cheg.server
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl
-                                                     cljx.repl-middleware/wrap-cljx]}
+                                                     cljx.repl-middleware/wrap-cljx]
+                                  }
 
                    :plugins [[lein-figwheel "0.1.6-SNAPSHOT"]
                              [speclj "3.1.0"]
-                             [lein-pdo "0.1.1"]
-                             [com.keminglabs/cljx "0.4.0" :exclusions [org.clojure/clojure]]]
+                             [com.keminglabs/cljx "0.4.0" :exclusions [org.clojure/clojure]]
+                             ]
 
                    :figwheel {:http-server-root "public"
                               :server-port 3449

@@ -1,11 +1,12 @@
-(ns cheg.obj)
+(ns cheg.obj
+  (:require 
+    [cheg.vec :as vec]) )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Protocols
 (defprotocol IRenderContext
   (clear [this col])
   (static-img [this x y img]))
-
 
 
 (defprotocol ICreate
@@ -48,17 +49,15 @@
 (defn get-pos [o]
   (get-items o [:x :y]))
 
-(defn obj-home-on-pos [cx cy {:keys [x y xv yv] :as obj} ]
-  (let [ scalefn (fn [p pv cp] (+ pv (* (- p cp) 0.001))) ]
-    (assoc
-      obj
-      :xv (scalefn x xv cx)
-      :yv (scalefn y yv cy))))
+(defn home [cp p v scale]
+  (vec/add v (vec/mul-s (vec/sub cp p) scale )))
+
+(defn obj-home-on-pos [cp {:keys [x y xv yv] :as obj} ]
+  (let [ [nxv nyv] (home cp [x y] [xv yv] 0.001) ]
+    (assoc obj :xv nxv :yv nyv)))
 
 (defn obj-add-vels [ {:keys [x y xv yv] :as obj} game-time ]
-  (assoc
-    obj
-    :x (+ x xv) :y (+ y yv)))
+  (assoc obj :x (+ x xv) :y (+ y yv)))
 
 (defn mod-nth [col idx]
   (nth col (mod idx (count col))))
@@ -70,7 +69,6 @@
   (let [speed 0.1
         idx (/ anim-time speed) ]
     (mod-nth imgs idx)))
-
 
 (defn obj-get-frame [{:keys [imgs] :as o} game-time ]
   (let [speed 0.1

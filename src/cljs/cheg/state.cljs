@@ -3,6 +3,7 @@
   (:require 
     [cheg.gfx :as gfx]
     [cheg.obj :as obj]
+    [cheg.vec :as vec]
     [om.dom :as dom :include-macros true]
     [cljs.core.async :refer [put! <! >! chan]] ))
 
@@ -50,12 +51,24 @@
 (defn add-obj! [o]
   (append-item! [:game-state :objs] o))
 
+
+(defn spr-default-behaviour [o t]
+  o)
+
+(defn spr-default-render [r {:keys [x y spr-handle] :as o} time-now]
+  (let [id (obj/obj-get-frame o time-now)
+        offset (gfx/get-img-offset id spr-handle)
+        [nx ny] (vec/add [x y] offset) ]
+      (obj/static-img r nx ny id)
+    )
+  )
+
 (def spr-defaults {:start-time 0
                    :x 0 :y 0 :vx 0 :yv 0
                    :imgs [:flap-f1]
-                   :behaviour (fn [o] o)
+                   :behaviour spr-default-render
+                   :render spr-default-render
                    :spr-handle :top-left
-                   :render-xform      (fn [o game-time] o)
                    })
 
 (defn mkspr [i]
@@ -63,13 +76,13 @@
    vals))
 
 (defn get-game-time []
-  (get-in @app-state [:gamestate :game-time]))
+  (get-in @app-state [:game-state :game-time]))
 
 (defn add-random-jumpy! []
   (add-obj!
     (mkspr
       {:start-time (get-game-time)
-       :behaviour   (fn [o game-time] (obj/obj-home-on-pos 100 100 o))
+       :behaviour   (fn [o game-time] (obj/obj-home-on-pos [100 100] o))
        :spr-handle :top-left
        :x           (rand 100)
        :y           (rand 100) })))

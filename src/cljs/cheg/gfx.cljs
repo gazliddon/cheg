@@ -32,28 +32,30 @@
 
 (def -imgs
   { :flap-f1      (mk-img  "MrJumpy/Flap-f1"  )
-    :flap-f2      (mk-img  "MrJumpy/Flap-f2"  )
-    :flap-f3      (mk-img  "MrJumpy/Flap-f3"  )
-    :flap-f4      (mk-img  "MrJumpy/Flap-f4"  )
+   :flap-f2      (mk-img  "MrJumpy/Flap-f2"  )
+   :flap-f3      (mk-img  "MrJumpy/Flap-f3"  )
+   :flap-f4      (mk-img  "MrJumpy/Flap-f4"  )
 
-    :jump-f1      (mk-img  "MrJumpy/Jump-f1"  )
+   :jump-f1      (mk-img  "MrJumpy/Jump-f1"  )
 
-    :run-f1       (mk-img  "MrJumpy/Run-f1"   )
-    :run-f2       (mk-img  "MrJumpy/Run-f2"   )
-    :run-f3       (mk-img  "MrJumpy/Run-f3"   )
+   :run-f1       (mk-img  "MrJumpy/Run-f1"   )
+   :run-f2       (mk-img  "MrJumpy/Run-f2"   )
+   :run-f3       (mk-img  "MrJumpy/Run-f3"   )
 
-    :logo         (mk-img  "Logo/Logo")
+   :logo         (mk-img  "Logo/Logo")
 
-    :pickup       (mk-img  "Platforms/Pickup")
-    :platform1    (mk-img  "Platforms/Platform1")
-    :platform2    (mk-img  "Platforms/Platform2")
-    :platform3    (mk-img  "Platforms/Platform3")
+   :pickup       (mk-img  "Platforms/Pickup")
+   :platform1    (mk-img  "Platforms/Platform1")
+   :platform2    (mk-img  "Platforms/Platform2")
+   :platform3    (mk-img  "Platforms/Platform3")
 
-    :background1  (mk-img  "Background/Background1") 
-    :background2  (mk-img  "Background/Background2") 
-    :sky1         (mk-img  "Background/Sky1")
-    :sky2         (mk-img  "Background/Sky2") 
+   :background1  (mk-img  "Background/Background1") 
+   :background2  (mk-img  "Background/Background2") 
+   :sky1         (mk-img  "Background/Sky1")
+   :sky2         (mk-img  "Background/Sky2") 
    })
+
+
 
 (def -anims 
   { :flap [:flap-f1 :flap-f2 :flap-f3 :flap-f4]
