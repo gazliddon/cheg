@@ -13,11 +13,18 @@
                                 ]] 
             ))
 
+
+(defn get-event-action [table event state]
+  (let [identity (fn [o _] o)]
+    (get-in table [state event] identity)))
+
+(defn process-events [table init-state events]
+  (let [ev-fn (fn [os ev]
+                (process-event table os ev) ) ])
+  (reduce event-fn init-state events))
+
 ; (defn game-scene [] )
 
-; (defn get-event-action [table event state]
-;   (let [identity (fn [o _] o)]
-;     (get-in table [state event] identity)))
 
 ; (defn process-event [ table {:keys [current-state] :as object} event]
 ;   ((get-event-action table current-state event) object event current-state))

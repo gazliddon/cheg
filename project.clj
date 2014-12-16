@@ -11,7 +11,7 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/clojurescript "0.0-2371" :scope "provided"]
                  [ring "1.3.2"]
-[org.clojure/core.async "0.1.346.0-17112a-alpha"]
+                 [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [ring/ring-defaults "0.1.2"]
                  [compojure "1.2.0"]
                  [enlive "1.1.5"]
@@ -19,6 +19,7 @@
                  [environ "1.0.0"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
+            [speclj "3.1.0"]
             [lein-environ "1.0.0"]]
 
   :min-lein-version "2.5.0"
@@ -39,8 +40,8 @@
                    :dependencies [[figwheel "0.1.6-SNAPSHOT"]
                                   [com.cemerick/piggieback "0.1.3"]
                                   [weasel "0.4.2"]
-                                  [leiningen "2.5.0"]
-                                  [speclj "3.1.0"]]
+                                  [speclj "3.1.0"]
+                                  [leiningen "2.5.0"] ]
 
                    :repl-options {:init-ns cheg.server
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl
@@ -48,7 +49,6 @@
                                   }
 
                    :plugins [[lein-figwheel "0.1.6-SNAPSHOT"]
-                             [speclj "3.1.0"]
                              [com.keminglabs/cljx "0.4.0" :exclusions [org.clojure/clojure]]
                              ]
 
