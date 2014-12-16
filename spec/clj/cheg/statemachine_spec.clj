@@ -5,27 +5,28 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Set of state events and a state table
-(defn go-create [object event current-state ev]
+(defn go-create [object ev & args]
   (-> object
       (assoc :pos [0 0]
              :lives 3)
       (ev :done)))
 
-( defn go-standing [object event current-state ev]
+( defn go-standing [object & args]
   (-> object
       (assoc
         :vel [0 0]
         :anim :stand-anim
         :state :standing)))
 
-(defn go-walk [object event current-state ev]
+(defn go-walk [object & args]
   (-> object
       (assoc
         :vel [1 0]
         :anim  :walk-anim
-        :state :walking)))
+        :state :walking
+        )))
 
-(defn go-die [{:keys [lives] :as object} event current-state ev]
+(defn go-die [{:keys [lives] :as object} ev & args]
   (-> object
       (assoc
         :anim  :die-anim
@@ -33,13 +34,13 @@
         :lives (dec lives))
       (ev :done) ))
 
-(defn go-finished? [{:keys [lives] :as object} event current-state ev]
+(defn go-finished? [{:keys [lives] :as object} & args]
   (-> object
       (assoc :state (if (= 0 lives)
                       :game-over
                       :standing))))
-
 (def fsm-table 
+  
   {:nothing {:create            go-create
              :done              go-standing}
 
@@ -52,7 +53,7 @@
    :dieing   {:done             go-finished? } })
 
 (def test-events
-  [ :create
+  [:create
    :done
    :joypad
    :enemy-collision
@@ -66,39 +67,33 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing support routines
-
 (defn transition-record [event prev-state next-state]
-  (str event " : "prev-state " -> " next-state))
-
-(defn add-transition-record [{:keys [:state-changes] :as player-state} event prev-state next-state]
-  (assoc
-    player-state
-    :state-changes (conj
-                     state-changes
-                     (transition-record event prev-state next-state))))
+  (let [ev-info (str event " " (:state prev-state) " -> "  (:state next-state))]
+    (if (= prev-state next-state)
+      (str ev-info "\n\tNO CHANGE\n")
+      (str ev-info "\n\t"prev-state "\n\t" next-state "\n") 
+      )))
 
 (defn next-event [{:keys [ changes object ] :as accum} event]
-  (let [new-object (process-event fsm-table object event)]
+  (let [new-object (process-event fsm-table object event) ]
     (-> accum
         (assoc :object new-object
                :changes (conj
                           changes
-                          [(transition-record event (:state object) (:state new-object))])))))
+                          [(transition-record event object  new-object)])))))
 
 (def runned-events
   (let [starter {:changes [] :object {:state :nothing}}]
     (reduce next-event starter test-events)))
-
-(doseq [c  (:changes  runned-events)]
-  (println c)
-  )
-(println "object is ")
+(println "")
+(doseq [changes (:changes runned-events)]
+  (println changes))
+(println "")
+(println "End State")
 (println (:object runned-events))
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; And the tests
 
-; (def fake-player
-;   {:current-state :nothing
-;    :state-changes []}
-;   )
