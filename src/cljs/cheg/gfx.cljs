@@ -22,40 +22,37 @@
     (vec/sub [0 0] offset)))
 
 
-(defn create-img [str]
-  (let [img (.createElement js/document "img")]
-    (.setAttribute img "src" str)
-    img))
+(defn create-img [id]
+  )
 
-(defn mk-img [path]
-  (create-img (str "MrJumpy/" path ".png")))
+(defn mk-img [id]
+  (. js/document (getElementById id)))
 
 (def -imgs
-  { :flap-f1      (mk-img  "MrJumpy/Flap-f1"  )
-   :flap-f2      (mk-img  "MrJumpy/Flap-f2"  )
-   :flap-f3      (mk-img  "MrJumpy/Flap-f3"  )
-   :flap-f4      (mk-img  "MrJumpy/Flap-f4"  )
+  {
+   :flap-f1     (mk-img  "flap-f1"  )
+   :flap-f2     (mk-img  "flap-f2"  )
+   :flap-f3     (mk-img  "flap-f3"  )
+   :flap-f4     (mk-img  "flap-f4"  )
 
-   :jump-f1      (mk-img  "MrJumpy/Jump-f1"  )
+   :jump-f1     (mk-img  "jump-f1"  )
 
-   :run-f1       (mk-img  "MrJumpy/Run-f1"   )
-   :run-f2       (mk-img  "MrJumpy/Run-f2"   )
-   :run-f3       (mk-img  "MrJumpy/Run-f3"   )
+   :run-f1      (mk-img  "run-f1"   )
+   :run-f2      (mk-img  "run-f2"   )
+   :run-f3      (mk-img  "run-f3"   )
 
-   :logo         (mk-img  "Logo/Logo")
+   :logo        (mk-img  "logo")
 
-   :pickup       (mk-img  "Platforms/Pickup")
-   :platform1    (mk-img  "Platforms/Platform1")
-   :platform2    (mk-img  "Platforms/Platform2")
-   :platform3    (mk-img  "Platforms/Platform3")
+   :pickup      (mk-img  "pickup")
+   :platform1   (mk-img  "platform1")
+   :platform2   (mk-img  "platform2")
+   :platform3   (mk-img  "platform3")
 
-   :background1  (mk-img  "Background/Background1") 
-   :background2  (mk-img  "Background/Background2") 
-   :sky1         (mk-img  "Background/Sky1")
-   :sky2         (mk-img  "Background/Sky2") 
+   :background1 (mk-img  "background1") 
+   :background2 (mk-img  "background2") 
+   :sky1        (mk-img  "sky1")
+   :sky2        (mk-img  "sky2") 
    })
-
-
 
 (def -anims 
   { :flap [:flap-f1 :flap-f2 :flap-f3 :flap-f4]

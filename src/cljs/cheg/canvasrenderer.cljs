@@ -13,7 +13,7 @@
       (clear [_ col]
         (doto ctx
           (aset "fillStyle" col)
-          (.fillRect 0 0 width height)))  
+          (.fillRect 0 0 1280 720)))  
 
       (static-img [_ x y img]
         (let [i (gfx/get-img img)

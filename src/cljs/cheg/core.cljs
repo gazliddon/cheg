@@ -32,6 +32,19 @@
 (def bg-col "#60b0ff")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn update-game [{:keys [game-time objs] :as game} dt]
+  (let [new-time (+ game-time dt)]
+    (assoc
+      game
+      :objs (obj/update-objs objs new-time)
+      :game-time new-time)))
+
+(defn update! []
+  (let [ game (:game-state @app-state) ]
+    (when-not (:paused game)
+      (swap! app-state assoc :game-state (update-game game (/ 1 60))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn kill-objs! []
   (swap! app-state assoc-in [:game-state :objs] []))
 
@@ -105,7 +118,8 @@
         offset (gfx/get-img-offset id spr-handle)
         time-offset (vec/mul [xv 0] [ time-now time-now])
         with-offsets (vec/add pos (vec/add time-offset offset))
-        max-idx  (+ 2  (/ scr-width w))
+        max-idx  (+ 1  (/ scr-width w))
+
         wrap-x (* max-idx w) ]
 
     (doseq [ix (range max-idx) ]
@@ -132,6 +146,8 @@
 (def titles-sprs
   (mapv tospr titles))
 
+
+
 ;; Flow is:
 ;;   - render    : creates the canvas element with a reference we can get later
 ;;   - did-mount : called after dom elements created
@@ -148,13 +164,17 @@
         (fn [_]
           {:renderer  (renderer/canvas-renderer (om/get-node owner "surface-ref")) })))
 
-    om/IDidUpdate
-    (did-update [_ {:keys [objs game-time]} _]
+    om/IWillUpdate
+    (will-update [_ {:keys [objs game-time]} _]
       (let [ renderer (om/get-state owner :renderer) ]
         (obj/clear renderer bg-col)
         (render-obj-list renderer titles-sprs game-time)
         (render-obj-list renderer objs game-time)
         ))
+
+    om/IDidUpdate
+    (did-update [_ {:keys [objs game-time]} _]
+      (update!))
 
     om/IRender
     (render [_]
@@ -167,23 +187,28 @@
 (defn container [app owner]
   (reify
     om/IRenderState
+
     (render-state [this state]
       (let [game (:game-state app) ]
         (dom/div
           #js {:className "container"}
           (om/build header app)
-          (om/build canvas game)
-          (om/build stats game)
-          (om/build action-button
-                    {:text "Add objs"
-                     :action (fn [] (send-game-message :add-objs nil)) })
+          (dom/div
+            nil
+            (om/build canvas game))
 
-          (om/build action-button
-                    {:text "kill objs"
-                     :action (fn [] (send-game-message :kill-objs 1)) })
+          (dom/div
+            nil
+            (om/build stats game)
+            (om/build action-button
+                      {:text "Add objs"
+                       :action (fn [] (send-game-message :add-objs nil)) })
 
-          (om/build pause-button game)
-          )))))
+            (om/build action-button
+                      {:text "kill objs"
+                       :action (fn [] (send-game-message :kill-objs 1)) })
+
+            (om/build pause-button game)))))))
 
 (defn page [app owner]
   (reify
@@ -195,17 +220,6 @@
         (om/build container app)))))
 
 
-(defn update-game [{:keys [game-time objs] :as game} dt]
-  (let [new-time (+ game-time dt)]
-    (assoc
-      game
-      :objs (obj/update-objs objs new-time)
-      :game-time new-time)))
-
-(defn update! []
-  (let [ game (:game-state @app-state) ]
-    (when-not (:paused game)
-      (swap! app-state assoc :game-state (update-game game (/ 1 60))))))
 
 (defn handle-msg [m-to-f [m v]]
   (let [func (m m-to-f)]
@@ -217,18 +231,27 @@
    :add-objs     (fn [_] (add-random-jumpy!))
    :kill-objs    (fn [_] (kill-objs!))} )
 
+
+(defn setMessageHandler [mfunc] )
+
+(defn title-message-handler []
+  { :start-game (fn [])
+    :leaderboards (fn [])
+    :about (fn []) }
+  )
+
+(defn game-message-hnadler []
+  
+  )
+
+
 (def handle-game-msg (partial handle-msg game-msg-to-func))
 
-(defn main []
+(defn ^:export main []
   (om/root
     page
     app-state
     {:target (. js/document (getElementById "app"))})
-
-  (when-not (:updating @app-state)
-    (swap! app-state assoc :updating true)
-    (hook-to-reqanim update!)
-    )
 
   (go-loop
     []
@@ -242,7 +265,9 @@
   ;          (let [msg (<! (:messages @app-state))]
   ;            (println msg))
   ;          (recur))
+
   )
+
 
 
 ; The game is a series of one dimensional entities in the time axis
