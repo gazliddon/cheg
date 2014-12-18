@@ -4,60 +4,11 @@
             [cheg.vec :as vec]
             ))
 
+(defn event [o e & args] (assoc o :event (conj (:event o) (conj [e] args))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Set of state events and a state table
-(defn go-create [object ev & args]
-  (-> object
-      (assoc 
-             :pos [0 0]
-             :lives 3)
-      (ev :done)))
 
-
-( defn go-standing [object & args]
-  (-> object
-      (assoc
-        :vel [0 0]
-        :anim :stand-anim
-        :state :standing)))
-
-(defn go-walk [object & args]
-  (-> object
-      (assoc
-        :vel [1 0]
-        :anim  :walk-anim
-        :state :walking
-        )))
-
-(defn go-die [{:keys [lives] :as object} ev & args]
-  (-> object
-      (assoc
-        :anim  :die-anim
-        :state :dieing
-        :lives (dec lives))
-      (ev :done) ))
-
-(defn go-finished? [{:keys [lives] :as object} & args]
-  (-> object
-      (assoc :state (if (= 0 lives)
-                      :game-over
-                      :standing))))
-(def fsm-table 
-  
-  {:nothing {:create            go-create
-             :done              go-standing}
-
-   :standing {:joypad           go-walk
-              :enemy-collision  go-die }
-
-   :walking  {:no-joypad        go-standing
-              :enemy-collision  go-die }
-
-   :dieing   {:done             go-finished? } })
-
-
-
-(def fsm-table-2
+(def fsm-table
   {:create           {:nothing :creating}
 
    :done            {:creating :standing
@@ -76,36 +27,47 @@
                      :walking  :jumping}
    })
 
-(def player-obj-def
-  {:creating (fn [o t ev & args]
-               (-> o (assoc
-                      :pos [0 0]
-                      :lives 3)
-                    (ev :done)))
+(defn go-create [o & args]
+  (-> o
+      (assoc
+        :pos [0 0]
+        :lives 3)
+      (event :done)))
 
-   :standing (fn [o t & args]
-               (-> o (assoc
-                      :vel [0 0]
-                      :anim :idle
-                      )))
+(defn go-standing [o t & args]
+  (-> o
+      (assoc
+        :vel [0 0]
+        :anim :idle)))
 
-   :walking (fn [{:keys [vel] :as o} t ev dir & args]
-              (let [xv (get {:left -1 :right 1} dir 0)]
-                (-> o (assoc :vel (vec/add vel [xv 0])
-                             :anim (if (< xv 0)
-                                     :walk-left
-                                     :walk-right)))))
+(defn go-walking [ {:keys [vel] :as o} t dir & args]
+  (let [xv (get {:left -1 :right 1} dir 0)]
+    (-> o
+        (assoc 
+          :vel (vec/add vel [xv 0])
+          :anim (if (< xv 0)
+                  :walk-left 
+                  :walk-right)))))
 
-   :jumping (fn [{:keys [vel] :as o} t & args]
-              (-> o (assoc
-                      :vel (vec/add vel [0 5]))))
+(defn go-jumping [{:keys [vel] :as o} t & args]
+  (-> o
+      (assoc
+        :vel (vec/add vel [0 5]))))
 
-   :lose-life (fn [{:keys [lives] :as o} t ev & args]
-                (-> o (assoc
-                        :lives (dec lives))
-                    (ev (if (= lives 0)
-                          :lives-none
-                          :done)))) })
+(defn go-lose-life [{:keys [lives] :as o} t ev & args]
+  (-> o
+      (assoc :lives (dec lives))
+      (event (if (= lives 0)
+               :lives-none
+               :done))))
+
+
+(defn player-obj-def []
+  {:creating go-create
+   :standing go-stand
+   :walking go-walk
+   :jumping go-jump
+   :lose-life go-lose-life } )
 
 
 (def test-events
@@ -120,16 +82,25 @@
    [:done ]
    ])
 
-(defn process-event-2 [fsm-table obj-def {:keys [state] :as o} event & args]
-  (let [ next-state (event->new-state fsm-table event state) ]
-    (println o)
-    (if (= :no-change next-state)
-        o
-        (let [identity-func (fn [o & args] o)
-              ev-func (fn [o ev] o)
-              func          (get obj-def next-state identity-func)
-              next-o       (assoc o :state next-state)  ]
-          (apply func next-o 0 ev-func args)))))
+(defn process-event-2 [fsm-table obj-def object event & args]
+  (let [current-state (:state object ) 
+        next-state (event->new-state fsm-table event state) ]
+    (if (nil? next-state)
+      object
+      (let [identity-func (fn [object events & args] [object events])
+            ev-func (fn [object event & args]
+                      (apply process-event-2
+                             fsm-table
+                             obj-def {:object object 
+                                      :events (conj events [event])}
+                             args))
+
+            func        (get obj-def next-state identity-func)
+            next-object (apply func (assoc object :state next-state) 0 ev-func args)
+            ]
+
+        ))
+    ))
 
 (defn pfunc [o [event & args]]
   (apply
@@ -137,7 +108,7 @@
     args))
 
 (defn test-events-again []
-  (reduce pfunc {:state :nothing} test-events))
+  (reduce pfunc {:events [] :object {:state :nothing}}  test-events))
 
 ; (println (take 40 (repeat "-")))
 (println (test-events-again))
