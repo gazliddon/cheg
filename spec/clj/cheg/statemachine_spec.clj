@@ -1,6 +1,7 @@
 (ns cheg.statemachine-spec
   (:require [speclj.core :refer :all]
             [cheg.statemachine :refer :all :as sm]
+            [cheg.vec :as vec]
             ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -19,8 +20,6 @@
         :vel [0 0]
         :anim :stand-anim
         :state :standing)))
-
-(println (go-create {} go-standing))
 
 (defn go-walk [object & args]
   (-> object
@@ -56,17 +55,94 @@
 
    :dieing   {:done             go-finished? } })
 
+
+
+(def fsm-table-2
+  {:create           {:nothing :creating}
+
+   :done            {:creating :standing
+                     :lose-life :standing}
+
+   :enemy-collision {:walking  :lose-life
+                     :standing :lose-life}
+
+   :joypad          {:standing :walking}
+
+   :lives-none      :game-over 
+
+   :out-of-bounds   :lose-life
+
+   :button          {:standing :jumping
+                     :walking  :jumping}
+   })
+
+(def player-obj-def
+  {:creating (fn [o t ev & args]
+               (-> o (assoc
+                      :pos [0 0]
+                      :lives 3)
+                    (ev :done)))
+
+   :standing (fn [o t & args]
+               (-> o (assoc
+                      :vel [0 0]
+                      :anim :idle
+                      )))
+
+   :walking (fn [{:keys [vel] :as o} t ev dir & args]
+              (let [xv (get {:left -1 :right 1} dir 0)]
+                (-> o (assoc :vel (vec/add vel [xv 0])
+                             :anim (if (< xv 0)
+                                     :walk-left
+                                     :walk-right)))))
+
+   :jumping (fn [{:keys [vel] :as o} t & args]
+              (-> o (assoc
+                      :vel (vec/add vel [0 5]))))
+
+   :lose-life (fn [{:keys [lives] :as o} t ev & args]
+                (-> o (assoc
+                        :lives (dec lives))
+                    (ev (if (= lives 0)
+                          :lives-none
+                          :done)))) })
+
+
 (def test-events
-  [:create               ; nothing -> created
-   :done                 ; ignored
-   :joypad               ; standing -> :walking
-   :enemy-collision      ; walking ->
-   :joypad
-   :joypad
-   :joypad
-   :enemy-collision
-   :enemy-collision
-   :done ])
+  [[:create ]
+   [:done ]
+   [:joypad :right]
+   [:joypad :left]
+   [:joypad :right]
+   [:joypad :right ]
+   [:enemy-collision ]
+   [:enemy-collision ]
+   [:done ]
+   ])
+
+(defn process-event-2 [fsm-table obj-def {:keys [state] :as o} event & args]
+  (let [ next-state (event->new-state fsm-table event state) ]
+    (println o)
+    (if (= :no-change next-state)
+        o
+        (let [identity-func (fn [o & args] o)
+              ev-func (fn [o ev] o)
+              func          (get obj-def next-state identity-func)
+              next-o       (assoc o :state next-state)  ]
+          (apply func next-o 0 ev-func args)))))
+
+(defn pfunc [o [event & args]]
+  (apply
+    process-event-2 fsm-table-2 player-obj-def o event
+    args))
+
+(defn test-events-again []
+  (reduce pfunc {:state :nothing} test-events))
+
+; (println (take 40 (repeat "-")))
+(println (test-events-again))
+; (println (take 40 (repeat "-")))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing support routines
@@ -104,18 +180,18 @@
 (def final-obj (:object run-results))
 
 
-(println (take 40 (repeat "-")))
-(println "Events that change the object's state")
-(doseq [{:keys [event old-object new-object]} effecting-events  ]
-  (println (transition-report event old-object new-object )))
+; (println (take 40 (repeat "-")))
+; (println "Events that change the object's state")
+; (doseq [{:keys [event old-object new-object]} effecting-events  ]
+;   (println (transition-report event old-object new-object )))
 
 ; (println (take 40 (repeat "-")))
 ; (println "Events that had no effect")
 ; (doseq [{:keys [event old-object new-object]} ignored-events]
 ;   (println (transition-report event old-object new-object )))
 
-(doseq [e event-log]
-  (println e))
+; (doseq [e event-log]
+;   (println e))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
