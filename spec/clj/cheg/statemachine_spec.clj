@@ -61,7 +61,6 @@
                :lives-none
                :done))))
 
-
 (defn player-obj-def []
   {:creating go-create
    :standing go-stand
@@ -79,36 +78,28 @@
    [:joypad :right ]
    [:enemy-collision ]
    [:enemy-collision ]
-   [:done ]
-   ])
+   [:done ] ])
 
-(defn process-event-2 [fsm-table obj-def object event & args]
-  (let [current-state (:state object ) 
-        next-state (event->new-state fsm-table event state) ]
-    (if (nil? next-state)
-      object
-      (let [identity-func (fn [object events & args] [object events])
-            ev-func (fn [object event & args]
-                      (apply process-event-2
-                             fsm-table
-                             obj-def {:object object 
-                                      :events (conj events [event])}
-                             args))
+(defn process-object-func [fsm-table obj-def {:keys [events object]} event]
+  let [next-state    (event->new-state fsm-table event (:state object))
 
-            func        (get obj-def next-state identity-func)
-            next-object (apply func (assoc object :state next-state) 0 ev-func args)
-            ]
+        update-func (or
+                      (update-func-id obj-def)
+                      (fn [o & args] o))
 
-        ))
-    ))
+        next-obj    (apply update-func object args)  
+        next-events (conjs (:events next-obj) events) ]
 
-(defn pfunc [o [event & args]]
-  (apply
-    process-event-2 fsm-table-2 player-obj-def o event
-    args))
+  {:events (conj events next-events)
+   :object (dissoc :events  next-obj)})
 
-(defn test-events-again []
-  (reduce pfunc {:events [] :object {:state :nothing}}  test-events))
+
+(defn test-events-again [fsm-table player-obj-def object ]
+  (reduce
+    (partial process-object fsm-table player-obj-def)
+    {:events []
+     :object {:state :nothing}}
+    test-events ))
 
 ; (println (take 40 (repeat "-")))
 (println (test-events-again))
@@ -117,73 +108,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Testing support routines
-(defn join-lines [str-array]
-  (reduce #(str %1 (apply str %2) "\n") "" str-array))
-
-(defn transition-report [event old-object new-object]
-  (let [CR "\n"]
-    (str
-      "Event: " event ": " (:state old-object)" -> " (:state new-object) CR
-      old-object CR
-      new-object CR
-      "Equal? " (= new-object old-object))))
-
-(defn next-event [{:keys [ changes object ] :as accum} event]
-  (let [new-object (process-event fsm-table object event) ]
-    (assoc
-      accum
-      :object new-object
-      :changes (conj
-                 changes 
-                 {:event event
-                  :old-object object
-                  :new-object new-object
-                  :object-change? (= new-object object)}))))
-
-(def run-results
-  (let [starter {:changes [] :object {:state :nothing}}]
-    (reduce next-event starter test-events)))
-
-(def event-log (:changes run-results))
-(def ignored-events (filter #( :object-change? %1) event-log))
-(def effecting-events (filter #(complement ( :object-change? %1)) event-log))
-
-(def final-obj (:object run-results))
-
-
-; (println (take 40 (repeat "-")))
-; (println "Events that change the object's state")
-; (doseq [{:keys [event old-object new-object]} effecting-events  ]
-;   (println (transition-report event old-object new-object )))
-
-; (println (take 40 (repeat "-")))
-; (println "Events that had no effect")
-; (doseq [{:keys [event old-object new-object]} ignored-events]
-;   (println (transition-report event old-object new-object )))
-
-; (doseq [e event-log]
-;   (println e))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; And the tests
-(describe "Should have been an exact number of events"
-          (it "should have x events"
-              (should= 10 (count event-log))))
-
-(describe "Should have been an exact number of actual state changes"
-          (it "should have x state changes"
-              (should= 10 (count effecting-events))))
-
-(describe "Should have been an exact number of actual ignored events"
-          (it "should have x ignored events"
-              (should= 4 (count ignored-events))))
-
-(describe "The state of the final obj after the state run"
-          (it "The final object should be this"
-              (should= {:anim :die-anim
-                        :vel [1 0]
-                        :pos [0 0]
-                        :lives 0
-                        :state :game-over} final-obj)))
-
