@@ -92,10 +92,14 @@
      :object (dissoc :events  next-obj)}))
 
 (defn test-events-again [fsm-table obj-def object events]
-  (let [record {:events [] :object object }]
-    (reduce (partial process-object fsm-table obj-def) record events )))
+  (reduce (fn [r e] process-object fsm-table obj-def r e) object events))
 
-; (test-events-again player-fsm-table  player-obj-def {:state :nothing} test-events)
+(println 
+  (test-events-again
+    player-fsm-table 
+    player-obj-def 
+    {:state :nothing}
+    test-events))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; And the tests
