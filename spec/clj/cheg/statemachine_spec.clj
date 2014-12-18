@@ -8,7 +8,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Set of state events and a state table
 
-(def fsm-table
+(def player-fsm-table 
   {:create           {:nothing :creating}
 
    :done            {:creating :standing
@@ -34,13 +34,13 @@
         :lives 3)
       (event :done)))
 
-(defn go-standing [o t & args]
+(defn go-stand [o t & args]
   (-> o
       (assoc
         :vel [0 0]
         :anim :idle)))
 
-(defn go-walking [ {:keys [vel] :as o} t dir & args]
+(defn go-walk [ {:keys [vel] :as o} t dir & args]
   (let [xv (get {:left -1 :right 1} dir 0)]
     (-> o
         (assoc 
@@ -49,7 +49,7 @@
                   :walk-left 
                   :walk-right)))))
 
-(defn go-jumping [{:keys [vel] :as o} t & args]
+(defn go-jump [{:keys [vel] :as o} t & args]
   (-> o
       (assoc
         :vel (vec/add vel [0 5]))))
@@ -80,35 +80,22 @@
    [:enemy-collision ]
    [:done ] ])
 
-(defn process-object-func [fsm-table obj-def {:keys [events object]} event]
-  let [next-state    (event->new-state fsm-table event (:state object))
+(defn process-object [fsm-table obj-def {:keys [events object]} event & args]
+  (let [next-state    (event->new-state fsm-table event (:state object))
+        update-func    (or (next-state obj-def)
+                           (fn [o & args] o))
 
-        update-func (or
-                      (update-func-id obj-def)
-                      (fn [o & args] o))
+        next-obj       (apply update-func object args)  
+        next-events    (conj (:events next-obj) events) ]
 
-        next-obj    (apply update-func object args)  
-        next-events (conjs (:events next-obj) events) ]
+    {:events (conj events next-events)
+     :object (dissoc :events  next-obj)}))
 
-  {:events (conj events next-events)
-   :object (dissoc :events  next-obj)})
+(defn test-events-again [fsm-table obj-def object events]
+  (let [record {:events [] :object object }]
+    (reduce (partial process-object fsm-table obj-def) record events )))
 
-
-(defn test-events-again [fsm-table player-obj-def object ]
-  (reduce
-    (partial process-object fsm-table player-obj-def)
-    {:events []
-     :object {:state :nothing}}
-    test-events ))
-
-; (println (take 40 (repeat "-")))
-(println (test-events-again))
-; (println (take 40 (repeat "-")))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Testing support routines
-
+; (test-events-again player-fsm-table  player-obj-def {:state :nothing} test-events)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; And the tests
