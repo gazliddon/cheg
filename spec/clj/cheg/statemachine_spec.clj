@@ -5,7 +5,23 @@
             [clojure.pprint :refer :all]
             ))
 
-(defn event [o e & args] (assoc o :event (conj (:event o) (conj [e] args))))
+(defn event [ {:keys [events] :as o} & args] (assoc o :events (into (or events []) args)))
+
+(defn process-an-event [fsm-table obj-def object [ev & evargs]]
+  (if-let [next-state    (event->new-state fsm-table ev (:state object)) ]
+    (let [update-func    (or (next-state obj-def) (fn [o t & ] o))
+          next-obj       (apply update-func (assoc object :state next-state) 0 evargs)  ]
+      next-obj)
+    object))
+
+(defn process-events [fsm-table obj-def object events ]
+  (let [ev-fn ( partial process-an-event fsm-table obj-def)]
+    (loop [object object events events]
+      (if (empty? events)
+        object
+        (let [ object (reduce ev-fn object events) ]
+          (recur (dissoc object :events) (:events object)))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Set of state events and a state table
 
@@ -55,20 +71,19 @@
       (assoc
         :vel (vec/add vel [0 5]))))
 
-(defn go-lose-life [{:keys [lives] :as o} t ev & args]
+(defn go-lose-life [{:keys [lives] :as o} t & args]
   (-> o
       (assoc :lives (dec lives))
       (event (if (= lives 0)
                :lives-none
                :done))))
 
-(defn player-obj-def []
+(def player-obj-def
   {:creating go-create
    :standing go-stand
    :walking go-walk
    :jumping go-jump
    :lose-life go-lose-life } )
-
 
 (def test-events
   [[:create ]
@@ -81,35 +96,25 @@
    [:enemy-collision ]
    [:done ] ])
 
-(defn process-object [fsm-table obj-def {:keys [events object]} event & args]
-  (let [next-state    (event->new-state fsm-table event (:state object))
 
-        update-func    (or (next-state obj-def)
-                           (fn [o & args] o))
+(def init-obj {:state :nothing})
 
-        next-obj       (apply update-func object args)  
-        next-events    (conj (:events next-obj) events) ]
+(println "After one step")
+(def obj-record-after-one-step
+  (process-an-event player-fsm-table player-obj-def init-obj [ :create ]
+                    ))
+(pprint obj-record-after-one-step)
 
-    (pprint event)
-
-    {:events (conj events next-events)
-     :object (dissoc :events  next-obj)}))
-
-; (defn test-events-again [fsm-table obj-def object events]
-;   (reduce (fn [r e] (process-object fsm-table obj-def r e)) object events))
-
-
-(process-object player-fsm-table player-obj-def {:events [] :object {:state :noting}} :hello)
-
-(pprint test-events)
-
-(pprint 
-  (test-events-again
-    player-fsm-table 
-    player-obj-def 
-    {:state :nothing}
-    test-events))
+; (def obj-after-test-events
+;   (process-events player-fsm-table player-obj-def init-obj test-events))
+; (pprint obj-after-test-events)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; And the tests
+(describe "Testing obj-record-after-one-step"
+          (it "Should step a blank player through one step of the state machne"
+              (let [ {:keys [state events] :as object} obj-record-after-one-step ]
+                (should= [:done] events )
+                (should= :creating state ))))
+
