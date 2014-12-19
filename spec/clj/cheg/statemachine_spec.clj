@@ -2,6 +2,7 @@
   (:require [speclj.core :refer :all]
             [cheg.statemachine :refer :all :as sm]
             [cheg.vec :as vec]
+            [clojure.pprint :refer :all]
             ))
 
 (defn event [o e & args] (assoc o :event (conj (:event o) (conj [e] args))))
@@ -82,24 +83,33 @@
 
 (defn process-object [fsm-table obj-def {:keys [events object]} event & args]
   (let [next-state    (event->new-state fsm-table event (:state object))
+
         update-func    (or (next-state obj-def)
                            (fn [o & args] o))
 
         next-obj       (apply update-func object args)  
         next-events    (conj (:events next-obj) events) ]
 
+    (pprint event)
+
     {:events (conj events next-events)
      :object (dissoc :events  next-obj)}))
 
-(defn test-events-again [fsm-table obj-def object events]
-  (reduce (fn [r e] process-object fsm-table obj-def r e) object events))
+; (defn test-events-again [fsm-table obj-def object events]
+;   (reduce (fn [r e] (process-object fsm-table obj-def r e)) object events))
 
-(println 
+
+(process-object player-fsm-table player-obj-def {:events [] :object {:state :noting}} :hello)
+
+(pprint test-events)
+
+(pprint 
   (test-events-again
     player-fsm-table 
     player-obj-def 
     {:state :nothing}
     test-events))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; And the tests
