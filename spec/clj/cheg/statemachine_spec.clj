@@ -38,7 +38,8 @@
    :enemy-collision {:walking  :lose-life
                      :standing :lose-life}
 
-   :joypad          {:standing :walking}
+   :joypad          {:standing :walking
+                     :walking :walking}
 
    :lives-none      :game-over 
 
@@ -76,13 +77,14 @@
         :vel (vec/add vel [0 5]))))
 
 (defn go-lose-life [{:keys [lives] :as o} t & args]
-  (-> o
-      (assoc :lives (dec lives))
-      (event (if (= lives 0)
-               :lives-none
-               :done))))
+  (let  [lives-now (dec lives)]
+    (-> o
+        (assoc :lives lives-now)
+        (event (if (= lives-now 0)
+                 :lives-none
+                 :done))))
 
-(def player-obj-def
+  )(def player-obj-def
   {:creating go-create
    :standing go-stand
    :walking go-walk
@@ -97,7 +99,9 @@
    [:joypad :right ]
    [:enemy-collision ]
    [:enemy-collision ]
-   [:done ] ])
+   [:joypad :right ]
+   [:joypad :right ]
+   [:enemy-collision ] ])
 
 
 (def init-obj {:state :nothing})
@@ -111,7 +115,7 @@
   (process-events player-fsm-table player-obj-def init-obj test-events))
 ; (pprint obj-after-test-events)
 
-
+(pprint obj-after-test-events)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; And the tests
 ; (describe "Testing obj-record-after-one-step"
@@ -119,4 +123,13 @@
 ;               (let [ {:keys [state events] :as object} obj-record-after-one-step ]
 ;                 (should= [:done] events )
 ;                 (should= :creating state ))))
+
+
+
+; test that the end state is what I expect
+
+(describe "Test a full run of mock events"
+          (it "Should end in an expected state"
+              (should= :game-over (:state obj-after-test-events) ))
+          )
 
