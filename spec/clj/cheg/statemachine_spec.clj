@@ -27,7 +27,10 @@
           (recur (ev-fn object (first events)) (rest events)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Set of state events and a state table
+;; FSM for the player
+;; an fsm table
+;; a bunch of routines to call on state change
+;; and a table tieing the routines to specific states 
 
 (def player-fsm-table 
   {:create           {:nothing :creating}
@@ -38,15 +41,19 @@
    :enemy-collision {:walking  :lose-life
                      :standing :lose-life}
 
-   :joypad          {:standing :walking
-                     :walking :walking}
+   :joypad-left     {:standing :walking-left
+                     :walking-right :walking-left }
+
+   :joypad-right    {:standing :walking-right
+                     :walking-left :walking-right }
 
    :lives-none      :game-over 
 
    :out-of-bounds   :lose-life
 
    :button          {:standing :jumping
-                     :walking  :jumping}
+                     :walking-right :jumping 
+                     :walking-left  :jumping}
    })
 
 (defn go-create [o & args]
@@ -62,14 +69,13 @@
         :vel [0 0]
         :anim :idle)))
 
-(defn go-walk [ {:keys [vel] :as o} t dir & args]
-  (let [xv (get {:left -1 :right 1} dir 0)]
-    (-> o
-        (assoc 
-          :vel (vec/add vel [xv 0])
-          :anim (if (< xv 0)
-                  :walk-left 
-                  :walk-right)))))
+(defn go-walk [ anim xv {:keys [vel] :as o} t & args]
+  (-> o
+      (assoc 
+        :vel (vec/add vel [xv 0])
+        :anim anim)))
+(defn go-walk-left [o t & args] (apply go-walk :walk-left -1 o t & args))
+(defn go-walk-left [o t & args] (apply go-walk :walk-right -1 o t & args))
 
 (defn go-jump [{:keys [vel] :as o} t & args]
   (-> o
@@ -82,54 +88,45 @@
         (assoc :lives lives-now)
         (event (if (= lives-now 0)
                  :lives-none
-                 :done))))
+                 :done)))) )
 
-  )(def player-obj-def
-  {:creating go-create
-   :standing go-stand
-   :walking go-walk
-   :jumping go-jump
-   :lose-life go-lose-life } )
+(def player-obj-def
+  {:creating      go-create
+   :standing      go-stand
+   :walking-left  go-walk-left
+   :walking-right go-walk-right
+   :jumping       go-jump
+   :lose-life     go-lose-life } )
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; A bunch of test events to throw at a player object
 (def test-events
   [[:create ]
-   [:joypad :right]
-   [:joypad :left]
-   [:joypad :right]
-   [:joypad :right ]
+   [:joypad-right]
+   [:joypad-left]
+   [:joypad-right]
+   [:joypad-right ]
    [:enemy-collision ]
    [:enemy-collision ]
-   [:joypad :right ]
-   [:joypad :right ]
+   [:joypad-right ]
+   [:joypad-right ]
    [:enemy-collision ] ])
 
-
 (def init-obj {:state :nothing})
-
-; (def obj-record-after-one-step
-;   (process-an-event player-fsm-table player-obj-def init-obj [ :create ]))
-
-; (pprint obj-record-after-one-step)
 
 (def obj-after-test-events
   (process-events player-fsm-table player-obj-def init-obj test-events))
 ; (pprint obj-after-test-events)
 
 (pprint obj-after-test-events)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; And the tests
-; (describe "Testing obj-record-after-one-step"
-;           (it "Should step a blank player through one step of the state machne"
-;               (let [ {:keys [state events] :as object} obj-record-after-one-step ]
-;                 (should= [:done] events )
-;                 (should= :creating state ))))
-
-
-
-; test that the end state is what I expect
-
+;; The tests
 (describe "Test a full run of mock events"
           (it "Should end in an expected state"
               (should= :game-over (:state obj-after-test-events) ))
           )
+
+
+;; TODO A test to see if it can deal with irrelevant events fine
 
