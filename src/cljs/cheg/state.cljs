@@ -32,9 +32,9 @@
              :title "cheg"
              }))
 
-(defn send-game-message [m v]
+(defn send-game-message [m & args]
   (let [ch (get-in @app-state [:game-state :messages])]
-    (put! ch [m v])))
+    (put! ch [m args])))
 
 (defn -mk-toggle-fn [state addr]
   (fn []

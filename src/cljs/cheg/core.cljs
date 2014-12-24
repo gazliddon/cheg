@@ -4,6 +4,9 @@
             [cljs.core.async :refer [put! <! >! chan]]
             [om.dom :as dom :include-macros true]
             [cheg.canvasrenderer :as renderer]
+
+            [goog.events :as events]
+
             [cheg.gfx :as gfx]
             [cheg.vec :as vec]
             [cheg.obj :as obj]
@@ -15,7 +18,9 @@
                                 mkspr
                                 ]]
             [cheg.webutils :refer [hook-to-reqanim log]]
-            ))
+            )
+  (:import [goog.events EventType])
+  )
 
 (enable-console-print!)
 
@@ -133,12 +138,11 @@
 (defn parralax [xv pos-perc img spr-handle])
 
 (def titles
-  [{:xv -85  :pos [0 -0.05] :img :sky1        :spr-handle :top-left :render strip-render}
-   {:xv -73  :pos [0 0.12]  :img :sky2        :spr-handle :top-left :render strip-render}
+  [{:xv -85  :pos [0 -0.05] :img :sky1        :spr-handle :top-left    :render strip-render}
+   {:xv -73  :pos [0 0.12]  :img :sky2        :spr-handle :top-left    :render strip-render}
    {:xv -100 :pos [0 0.98]  :img :background2 :spr-handle :bottom-left :render strip-render}
    {:xv -150 :pos [0 1.02]  :img :background1 :spr-handle :bottom-left :render strip-render}
-   {:xv 0    :pos [0.5 0.5] :img :logo        :spr-handle :centered }
-   ] )
+   {:xv 0    :pos [0.5 0.5] :img :logo        :spr-handle :centered } ] )
 
 (defn tospr [{:keys [img pos xv] :as spr}]
   (let [[x y] (get-pos-perc  pos) ]
@@ -160,6 +164,7 @@
   (reify
     om/IDidMount
     (did-mount [_]
+      (events/listen js/window EventType/KEYPRESS #(send-game-message :keypress %1))
       (om/update-state!
         owner
         (fn [_]
@@ -203,11 +208,11 @@
             (om/build stats game)
             (om/build action-button
                       {:text "Add objs"
-                       :action (fn [] (send-game-message :add-objs nil)) })
+                       :action (fn [] (send-game-message :add-objs )) })
 
             (om/build action-button
                       {:text "kill objs"
-                       :action (fn [] (send-game-message :kill-objs 1)) })
+                       :action (fn [] (send-game-message :kill-objs )) })
 
             (om/build pause-button game)))))))
 
@@ -220,17 +225,16 @@
         (dom/h1 nil (:text app))
         (om/build container app)))))
 
-
-
 (defn handle-msg [m-to-f [m v]]
   (let [func (m m-to-f)]
     (when func
-      (func v))))
+      (apply func v))))
 
 (def game-msg-to-func
-  {:toggle-pause (fn [_] (toggle-pause-state)) 
-   :add-objs     (fn [_] (add-random-jumpy!))
-   :kill-objs    (fn [_] (kill-objs!))} )
+  {:toggle-pause toggle-pause-state 
+   :keypress     add-random-jumpy!
+   :add-objs     add-random-jumpy!
+   :kill-objs    kill-objs!} )
 
 
 (defn setMessageHandler [mfunc] )
@@ -240,11 +244,6 @@
     :leaderboards (fn [])
     :about (fn []) }
   )
-
-(defn game-message-hnadler []
-  
-  )
-
 
 (def handle-game-msg (partial handle-msg game-msg-to-func))
 
@@ -260,13 +259,6 @@
           msg (<! (:messages game)) ]
       (handle-game-msg msg)
       (recur)))
-
-  ;; Main message handler
-  ; (go-loop [] 
-  ;          (let [msg (<! (:messages @app-state))]
-  ;            (println msg))
-  ;          (recur))
-
   )
 
 
