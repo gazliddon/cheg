@@ -74,7 +74,9 @@
       (assoc 
         :vel (vec/add vel [xv 0])
         :anim anim)))
+
 (defn go-walk-left [o t & args] (apply go-walk :walk-left -1 o t & args))
+
 (defn go-walk-left [o t & args] (apply go-walk :walk-right -1 o t & args))
 
 (defn go-jump [{:keys [vel] :as o} t & args]
@@ -116,9 +118,26 @@
 
 (def obj-after-test-events
   (process-events player-fsm-table player-obj-def init-obj test-events))
-; (pprint obj-after-test-events)
 
 (pprint obj-after-test-events)
+
+;; Simple behaviour
+;; A behaviour must return pos, vel and local object time given the current time
+(defn get-state [t {:keys [start-time start-pos start-vel]}]
+  (let [obj-time (- t start-time)
+        dist (vec/muls start-vel obj-time)
+        ]
+    {:pos (vec/add start-pos dist)
+     :vel (start-vel)
+     :active true }))
+
+
+(defn get-record [t {:keys [behaviour start-time start-pos start-vel ] :as o}]
+  {:start-time start-time
+   :start-pos start-pos
+   :start-vel start-vel
+   :behaviour behaviour
+   :duration (- t start-time)})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; The tests
