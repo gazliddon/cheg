@@ -9,15 +9,21 @@
   (let [ current-events (get o :events [])]
     (assoc o :events (conj current-events new-event ))))
 
-(defn process-an-event [fsm-table obj-def object [ev & evargs]]
+(defn process-an-event [fsm-table obj-def time-now object [ev & evargs]]
   (if-let [next-state    (event->new-state fsm-table ev (:state object)) ]
-    (let [update-func    (or (next-state obj-def) (fn [o t & ] o))
-          next-obj       (apply update-func (assoc object :state next-state) 0 evargs)  ]
+    (let [update-func    (or (next-state obj-def) (fn [o & ] o))
+          next-obj       (apply update-func (assoc object :state next-state :start-time time-now) evargs)  ]
+      (when-not (= next-obj object)
+        (pprint (str "Event " ev " on state " (:state object)))
+        (pprint next-obj)
+        (pprint "")
+        )
+
       next-obj)
     object))
 
-(defn process-events [fsm-table obj-def arg-object arg-events ]
-  (let [ev-fn (partial process-an-event fsm-table obj-def)]
+(defn process-events [fsm-table obj-def time-now arg-object arg-events ]
+  (let [ev-fn (partial process-an-event fsm-table obj-def time-now)]
     (loop [object arg-object events arg-events ]
 
       (let [events (into (get object :events []) events)
@@ -63,28 +69,28 @@
         :lives 3)
       (event :done)))
 
-(defn go-stand [o t & args]
+(defn go-stand [o & args]
   (-> o
       (assoc
         :vel [0 0]
         :anim :idle)))
 
-(defn go-walk [ anim xv {:keys [vel] :as o} t & args]
+(defn go-walk [ anim xv {:keys [vel] :as o} & args]
   (-> o
       (assoc 
-        :vel (vec/add vel [xv 0])
+        :vel [xv 0]
         :anim anim)))
 
-(defn go-walk-left [o t & args] (apply go-walk :walk-left -1 o t & args))
+(defn go-walk-left [o & args] (apply go-walk :walk-left -1 o args))
 
-(defn go-walk-left [o t & args] (apply go-walk :walk-right -1 o t & args))
+(defn go-walk-right [o & args] (apply go-walk :walk-right 1 o args))
 
-(defn go-jump [{:keys [vel] :as o} t & args]
+(defn go-jump [{:keys [vel] :as o} & args]
   (-> o
       (assoc
         :vel (vec/add vel [0 5]))))
 
-(defn go-lose-life [{:keys [lives] :as o} t & args]
+(defn go-lose-life [{:keys [lives] :as o} & args]
   (let  [lives-now (dec lives)]
     (-> o
         (assoc :lives lives-now)
@@ -117,7 +123,7 @@
 (def init-obj {:state :nothing})
 
 (def obj-after-test-events
-  (process-events player-fsm-table player-obj-def init-obj test-events))
+  (process-events player-fsm-table player-obj-def 0 init-obj test-events))
 
 (pprint obj-after-test-events)
 
@@ -125,12 +131,11 @@
 ;; A behaviour must return pos, vel and local object time given the current time
 (defn get-state [t {:keys [start-time start-pos start-vel]}]
   (let [obj-time (- t start-time)
-        dist (vec/muls start-vel obj-time)
+        dist (vec/mul-s start-vel obj-time)
         ]
     {:pos (vec/add start-pos dist)
      :vel (start-vel)
      :active true }))
-
 
 (defn get-record [t {:keys [behaviour start-time start-pos start-vel ] :as o}]
   {:start-time start-time
