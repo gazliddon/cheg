@@ -7,7 +7,7 @@
             [cheg.obj :as obj]
             [cheg.state :refer [app-state
                                 toggle-pause-state
-                                send-game-message
+                                send-game-message!
                                 add-random-jumpy!
                                 mkspr
                                 ]] 

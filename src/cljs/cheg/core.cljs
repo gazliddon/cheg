@@ -1,26 +1,27 @@
 (ns cheg.core
   (:require-macros [cljs.core.async.macros :refer [go go-loop]])
-  (:require [om.core :as om :include-macros true]
-            [cljs.core.async :refer [put! <! >! chan]]
-            [om.dom :as dom :include-macros true]
-            [cheg.canvasrenderer :as renderer]
+  (:require
 
-            [goog.events :as events]
+    [om.core :as om :include-macros true]
+    [om.dom :as dom :include-macros true]
 
-            [cheg.gfx :as gfx]
-            [cheg.vec :as vec]
-            [cheg.obj :as obj]
-            [cheg.slider :as slider]
-            [cheg.state :refer [app-state
-                                toggle-pause-state
-                                send-game-message
-                                add-random-jumpy!
-                                mkspr
-                                ]]
-            [cheg.webutils :refer [hook-to-reqanim log]]
-            )
-  (:import [goog.events EventType])
-  )
+    [goog.events :as events]
+    [cljs.core.async :refer [put! <! >! chan]]
+
+
+    [cheg.canvasrenderer :as renderer]
+    [cheg.keys :as ckeys]
+    [cheg.gfx :as gfx]
+    [cheg.vec :as vec]
+    [cheg.obj :as obj]
+
+    [cheg.state :refer [app-state
+                        toggle-pause-state
+                        send-game-message!
+                        add-random-jumpy!
+                        mkspr
+                        ]] )
+  (:import [goog.events EventType]))
 
 (enable-console-print!)
 
@@ -160,23 +161,30 @@
 ;;                 setting the state causes did-update to be called
 ;;   - did-update  render everything - also triggered when @app-state :gamestate is updated
 
+(defn got-a-key-event [ev]
+  (send-game-message! :keypress ev))
+
 (defn canvas [ game owner ]
   (reify
     om/IDidMount
     (did-mount [_]
-      (events/listen js/window EventType/KEYPRESS #(send-game-message :keypress %1))
       (om/update-state!
         owner
         (fn [_]
           {:renderer  (renderer/canvas-renderer (om/get-node owner "surface-ref")) })))
 
     om/IWillUpdate
-    (will-update [_ {:keys [objs game-time]} _]
+    (will-update [_ {:keys [objs game-time player]} _]
       (let [ renderer (om/get-state owner :renderer) ]
         (obj/clear renderer bg-col)
         (render-obj-list renderer titles-sprs game-time)
         (render-obj-list renderer objs game-time)
-        ))
+
+        (let [player-renderable (player/get-renderable game-time player)]
+          (render-obj-list
+            renderer
+            [player-renderable]
+            game-time))))
 
     om/IDidUpdate
     (did-update [_ {:keys [objs game-time]} _]
@@ -208,11 +216,15 @@
             (om/build stats game)
             (om/build action-button
                       {:text "Add objs"
-                       :action (fn [] (send-game-message :add-objs )) })
+                       :action (fn [] (send-game-message! :add-objs )) })
+
+            (om/build action-button
+                      {:text "Create Player"
+                       :action (fn [] (send-game-message! :game-event :create )) })
 
             (om/build action-button
                       {:text "kill objs"
-                       :action (fn [] (send-game-message :kill-objs )) })
+                       :action (fn [] (send-game-message! :kill-objs )) })
 
             (om/build pause-button game)))))))
 
@@ -230,14 +242,29 @@
     (when func
       (apply func v))))
 
+
+(def key-to-message
+  { \w :joypad-up
+    \s :joypad-down
+    \a :joypad-left
+    \d :joypad-right
+    \l :button })
+
+;; Call this is we get a key down event
+;; translate to a state machine event and and
+;; send to game
+
+(defn got-a-key [{:keys [key-code]}]
+  (let [key-char (char key-code)
+        event (get key-to-message key-char)]
+    (send-game-message! :game-event event)))
+
 (def game-msg-to-func
   {:toggle-pause toggle-pause-state 
-   :keypress     add-random-jumpy!
+   :keypress     got-a-key
    :add-objs     add-random-jumpy!
    :kill-objs    kill-objs!} )
 
-
-(defn setMessageHandler [mfunc] )
 
 (defn title-message-handler []
   { :start-game (fn [])
@@ -253,6 +280,11 @@
     app-state
     {:target (. js/document (getElementById "app"))})
 
+  ;; Only hook up the key listener if we're running for the first time
+  (when-not (:done-init @app-state)
+      (events/listen js/window EventType/KEYPRESS #(got-a-key-event (ckeys/translate-key-event %1)))
+      (swap! app-state assoc :done-init true))
+
   (go-loop
     []
     (let [game (:game-state @app-state)
@@ -260,8 +292,6 @@
       (handle-game-msg msg)
       (recur)))
   )
-
-
 
 ; The game is a series of one dimensional entities in the time axis
 ; each entity has a position and a dimension (2d, t and variation?)

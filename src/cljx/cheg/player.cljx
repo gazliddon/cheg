@@ -1,4 +1,7 @@
-(ns cheg.player )
+(ns cheg.player
+  (:require
+    [cheg.statemachine :as sm]
+    [cheg.vec :as vec]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; FSM for the player
@@ -6,7 +9,7 @@
 ;; a bunch of routines to call on state change
 ;; and a table tieing the routines to specific states 
 
-(def player-fsm-table 
+(def fsm-table 
   {:create           {:nothing :creating}
 
    :done            {:creating :standing
@@ -31,12 +34,12 @@
                      :walking-left  :jumping}
    })
 
-(defn go-create [o & args]
+(defn go-create [o pos & args]
   (-> o
       (assoc
-        :pos [0 0]
+        :pos pos
         :lives 3)
-      (event :done)))
+      (sm/event :done)))
 
 (defn go-stand [o & args]
   (-> o
@@ -63,14 +66,23 @@
   (let  [lives-now (dec lives)]
     (-> o
         (assoc :lives lives-now)
-        (event (if (= lives-now 0)
+        (sm/event (if (= lives-now 0)
                  :lives-none
                  :done)))) )
 
-(def player-obj-def
+(def on-event
   {:creating      go-create
    :standing      go-stand
    :walking-left  go-walk-left
    :walking-right go-walk-right
    :jumping       go-jump
    :lose-life     go-lose-life } )
+
+(defn get-renderable [time-now {:keys [start-time pos vel]} ]
+  (let [obj-time (- time-now start-time)  
+        [x y] (vec/add pos (vec/mul-s vel obj-time))]
+    {:x x
+     :y y
+     :imgs [:run-f1]
+     :spr-handle :bottom-middle }))
+

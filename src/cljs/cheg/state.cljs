@@ -4,6 +4,7 @@
     [cheg.gfx :as gfx]
     [cheg.obj :as obj]
     [cheg.vec :as vec]
+    [cheg.player :as player]
     [om.dom :as dom :include-macros true]
     [cljs.core.async :refer [put! <! >! chan]] ))
 
@@ -22,17 +23,21 @@
                      :py 10
                      }
 
+
              :game-state {:messages (chan)
                           :paused false
-                          :player -player
                           :objs [] 
                           :game-time 0
+
+                          :player {:state      :nothing
+                                   :fsm-table  player/fsm-table
+                                   :on-event   player/on-event }
                           }
 
              :title "cheg"
              }))
 
-(defn send-game-message [m & args]
+(defn send-game-message! [m & args]
   (let [ch (get-in @app-state [:game-state :messages])]
     (put! ch [m args])))
 
@@ -110,7 +115,11 @@
        :spr-handle :centered
        :imgs [img]  })))
 
-
+(defn handle-game-event [ev & args]
+  (let [time-now (get-in @app-state :game-state :game-time)
+        player (get-in @app-state :game-state :player)
+        new-player (apply sm/obj-process-events  player ev args)]
+    (swap! app-state assoc-in :game-state :player new-player)))
 
 
 
