@@ -15,6 +15,9 @@
     [cheg.vec :as vec]
     [cheg.obj :as obj]
 
+    [cheg.player :as player]
+
+
     [cheg.state :refer [app-state
                         toggle-pause-state
                         send-game-message!

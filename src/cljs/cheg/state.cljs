@@ -5,37 +5,17 @@
     [cheg.obj :as obj]
     [cheg.vec :as vec]
     [cheg.player :as player]
+    [cheg.statemachine :as sm]
     [om.dom :as dom :include-macros true]
     [cljs.core.async :refer [put! <! >! chan]] ))
+
+(declare app-state)
 
 (def -player
   { :x 100 :y 100 :xv 0 :yv 0 :col "green"}
   
   )
 
-(defonce app-state
-  (atom {    :messages (chan)
-             :mouse-pos [0 0]
-             :updating false
-
-             :stats {:num-objs 0
-                     :px 10
-                     :py 10
-                     }
-
-
-             :game-state {:messages (chan)
-                          :paused false
-                          :objs [] 
-                          :game-time 0
-
-                          :player {:state      :nothing
-                                   :fsm-table  player/fsm-table
-                                   :on-event   player/on-event }
-                          }
-
-             :title "cheg"
-             }))
 
 (defn send-game-message! [m & args]
   (let [ch (get-in @app-state [:game-state :messages])]
@@ -118,8 +98,28 @@
 (defn handle-game-event [ev & args]
   (let [time-now (get-in @app-state :game-state :game-time)
         player (get-in @app-state :game-state :player)
-        new-player (apply sm/obj-process-events  player ev args)]
-    (swap! app-state assoc-in :game-state :player new-player)))
+        new-player (apply sm/process-events player/fsm-table player/on-event time-now  player ev args)]
+    (comment swap! app-state assoc-in :game-state :player new-player)))
 
 
+(defonce app-state
+  (atom {    :messages (chan)
+             :mouse-pos [0 0]
+             :updating false
+
+             :stats {:num-objs 0
+                     :px 10
+                     :py 10
+                     }
+
+
+             :game-state {:messages (chan)
+                          :paused false
+                          :objs [] 
+                          :game-time 0
+                          :player (mkspr {:state :nothing }) 
+                          }
+
+             :title "cheg"
+             }))
 

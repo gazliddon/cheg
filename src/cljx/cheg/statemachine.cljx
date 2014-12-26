@@ -17,15 +17,15 @@
 
 ; Replacement state machine :D
 
-(derive clojure.lang.Keyword ::keyword)
-(derive clojure.lang.PersistentHashMap ::hash-map)
+(derive #+clj clojure.lang.Keyword #+cljs cljs.core/Keyword ::keyword)
+(derive #+clj clojure.lang.PersistentHashMap #+cljs cljs.core/PersistentArrayMap ::hash-map)
 
 (defmulti state->next-state (fn [mapping _] (type mapping)))
 
 (defmethod state->next-state ::keyword [ mapping _ ]
           mapping)
 
-(defmethod state->next-state clojure.lang.PersistentHashMap [mapping current-state]
+(defmethod state->next-state ::hash-map [mapping current-state]
   (get mapping current-state nil))
 
 (defmethod state->next-state nil [_ _] nil)
