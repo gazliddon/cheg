@@ -1,5 +1,6 @@
 (ns cheg.player
   (:require
+    [cheg.state :as ST]
     [cheg.statemachine :as sm]
     [cheg.vec :as vec]))
 
@@ -81,8 +82,9 @@
 (defn get-renderable [time-now {:keys [start-time pos vel]} ]
   (let [obj-time (- time-now start-time)  
         [x y] (vec/add pos (vec/mul-s vel obj-time))]
-    {:x x
-     :y y
-     :imgs [:run-f1]
-     :spr-handle :bottom-middle }))
+    (ST/mkspr {:x x
+               :y y
+               :imgs [:run-f1]
+               :spr-handle :bottom-middle })
+    ))
 

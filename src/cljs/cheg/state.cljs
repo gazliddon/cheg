@@ -117,7 +117,9 @@
                           :paused false
                           :objs [] 
                           :game-time 0
-                          :player (mkspr {:state :nothing }) 
+                          :player (mkspr {:state :nothing
+                                          :x 100
+                                          :y 100}) 
                           }
 
              :title "cheg"
