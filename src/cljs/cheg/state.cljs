@@ -18,8 +18,11 @@
 
 
 (defn send-game-message! [m & args]
-  (let [ch (get-in @app-state [:game-state :messages])]
-    (put! ch [m args])))
+  (do
+    (let [ch (get-in @app-state [:game-state :messages])]
+      (println (str  "Sending game msg" m args))
+      (println ch)
+      (put! ch [m args]))))
 
 (defn -mk-toggle-fn [state addr]
   (fn []
@@ -95,10 +98,11 @@
        :spr-handle :centered
        :imgs [img]  })))
 
-(defn handle-game-event [ev & args]
+(defn handle-game-event [_ ev & args]
   (let [time-now (get-in @app-state :game-state :game-time)
         player (get-in @app-state :game-state :player)
         new-player (apply sm/process-events player/fsm-table player/on-event time-now  player ev args)]
+    (println (str "new game event" ev))
     (comment swap! app-state assoc-in :game-state :player new-player)))
 
 

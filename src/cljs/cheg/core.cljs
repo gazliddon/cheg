@@ -163,10 +163,6 @@
 ;;                 sets the comp state to have surface and a renderer
 ;;                 setting the state causes did-update to be called
 ;;   - did-update  render everything - also triggered when @app-state :gamestate is updated
-
-(defn got-a-key-event [ev]
-  (send-game-message! :keypress ev))
-
 (defn canvas [ game owner ]
   (reify
     om/IDidMount
@@ -260,13 +256,20 @@
 (defn got-a-key [{:keys [key-code]}]
   (let [key-char (char key-code)
         event (get key-to-message key-char)]
+    (println (str "Sending game event!" event))
     (send-game-message! :game-event event)))
+
+(defn got-a-key [ev]
+  (println ev)
+  )
 
 (def game-msg-to-func
   {:toggle-pause toggle-pause-state 
    :keypress     got-a-key
    :add-objs     add-random-jumpy!
-   :kill-objs    kill-objs!} )
+   :kill-objs    kill-objs!
+   :game-event   handle-game-event  
+   } )
 
 
 (defn title-message-handler []
@@ -274,8 +277,6 @@
     :leaderboards (fn [])
     :about (fn []) }
   )
-
-(def handle-game-msg (partial handle-msg game-msg-to-func))
 
 (defn ^:export main []
   (om/root
@@ -285,14 +286,19 @@
 
   ;; Only hook up the key listener if we're running for the first time
   (when-not (:done-init @app-state)
-      (events/listen js/window EventType/KEYPRESS #(got-a-key-event (ckeys/translate-key-event %1)))
-      (swap! app-state assoc :done-init true))
+    (println "Initialising*****")
+    (events/listen
+      js/window
+      EventType/KEYPRESS (fn [ev]
+                           (let [gev (ckeys/translate-key-event ev )]
+                             (send-game-message! :keypress gev))))
+    (swap! app-state assoc :done-init true))
 
   (go-loop
     []
     (let [game (:game-state @app-state)
           msg (<! (:messages game)) ]
-      (handle-game-msg msg)
+      (handle-msg game-msg-to-func msg )
       (recur)))
   )
 

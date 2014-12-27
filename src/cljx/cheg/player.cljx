@@ -70,7 +70,6 @@
         (sm/event (if (= lives-now 0)
                  :lives-none
                  :done)))) )
-
 (def on-event
   {:creating      go-create
    :standing      go-stand
@@ -81,10 +80,13 @@
 
 (defn get-renderable [time-now {:keys [start-time pos vel]} ]
   (let [obj-time (- time-now start-time)  
-        [x y] (vec/add pos (vec/mul-s vel obj-time))]
-    (ST/mkspr {:x x
+        [x y] (vec/add pos (vec/mul-s vel obj-time))
+        renderable (ST/mkspr {:x x
                :y y
                :imgs [:run-f1]
                :spr-handle :bottom-middle })
+        ]
+
+    renderable
     ))
 
