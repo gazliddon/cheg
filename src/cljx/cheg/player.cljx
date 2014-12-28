@@ -40,7 +40,7 @@
       (assoc
         :pos pos
         :lives 3)
-      (sm/event :done)))
+      ))
 
 (defn go-stand [o & args]
   (-> o
@@ -48,15 +48,14 @@
         :vel [0 0]
         :anim :idle)))
 
-(defn go-walk [ anim xv {:keys [vel] :as o} & args]
+(defn go-walk [o anim xvv]
   (-> o
       (assoc 
-        :vel [xv 0]
+        :vel [xvv 0]
         :anim anim)))
 
-(defn go-walk-left [o & args] (apply go-walk :walking-left -1 o args))
-
-(defn go-walk-right [o & args] (apply go-walk :walking-right 1 o args))
+(defn go-walk-left [o & _ ] (go-walk o :walking-left 2))
+(defn go-walk-right [o & _ ] (go-walk o :walking-right 1))
 
 (defn go-jump [{:keys [vel] :as o} & args]
   (-> o

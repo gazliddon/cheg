@@ -14,16 +14,8 @@
     [cheg.gfx :as gfx]
     [cheg.vec :as vec]
     [cheg.obj :as obj]
-
     [cheg.player :as player]
-
-
-    [cheg.state :refer [app-state
-                        toggle-pause-state
-                        send-game-message!
-                        add-random-jumpy!
-                        mkspr
-                        ]] )
+    [cheg.state :as ST] )
   (:import [goog.events EventType]))
 
 (enable-console-print!)
@@ -49,13 +41,13 @@
       :game-time new-time)))
 
 (defn update! []
-  (let [ game (:game-state @app-state) ]
+  (let [ game (:game-state @ST/app-state) ]
     (when-not (:paused game)
-      (swap! app-state assoc :game-state (update-game game (/ 1 60))))))
+      (swap! ST/app-state assoc :game-state (update-game game (/ 1 60))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn kill-objs! []
-  (swap! app-state assoc-in [:game-state :objs] []))
+  (swap! ST/app-state assoc-in [:game-state :objs] []))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn header [ app owner ]
@@ -91,7 +83,7 @@
     om/IRenderState
     (render-state [this {:keys [ paused ]}]
       (om/build action-button {:text (get-paused-text paused)
-                               :action toggle-pause-state }))))
+                               :action ST/toggle-pause-state }))))
 
 
 
@@ -99,7 +91,8 @@
 (defn get-stats-state [{:keys [objs player game-time]}]
   (let [px (:x player)
         py (:y player)
-        pstr (str "{ " px "," px " }") ]
+        state (:state player)
+        pstr (str "state " state " {" px "," px " }") ]
     {:text (str (count objs) " objs: player: " pstr )
      :game-time game-time }))
 
@@ -150,19 +143,17 @@
 
 (defn tospr [{:keys [img pos xv] :as spr}]
   (let [[x y] (get-pos-perc  pos) ]
-    (mkspr (assoc spr :imgs [img] :x x :y y))))
+    (ST/mkspr (assoc spr :imgs [img] :x x :y y))))
 
 (def titles-sprs
   (mapv tospr titles))
-
-
 
 ;; Flow is:
 ;;   - render    : creates the canvas element with a reference we can get later
 ;;   - did-mount : called after dom elements created
 ;;                 sets the comp state to have surface and a renderer
 ;;                 setting the state causes did-update to be called
-;;   - did-update  render everything - also triggered when @app-state :gamestate is updated
+;;   - did-update  render everything - also triggered when @ST/app-state :gamestate is updated
 (defn canvas [ game owner ]
   (reify
     om/IDidMount
@@ -215,15 +206,15 @@
             (om/build stats game)
             (om/build action-button
                       {:text "Add objs"
-                       :action (fn [] (send-game-message! :add-objs )) })
+                       :action (fn [] (ST/send-game-message! :add-objs )) })
 
             (om/build action-button
                       {:text "Create Player"
-                       :action (fn [] (send-game-message! :game-event :create )) })
+                       :action (fn [] (ST/send-game-message! :game-event :create )) })
 
             (om/build action-button
                       {:text "kill objs"
-                       :action (fn [] (send-game-message! :kill-objs )) })
+                       :action (fn [] (ST/send-game-message! :kill-objs )) })
 
             (om/build pause-button game)))))))
 
@@ -236,67 +227,35 @@
         (dom/h1 nil (:text app))
         (om/build container app)))))
 
-(defn handle-msg [m-to-f [m v]]
-  (let [func (m m-to-f)]
-    (when func
-      (apply func v))))
-
-
-(def key-to-message
-  { \w :joypad-up
-    \s :joypad-down
-    \a :joypad-left
-    \d :joypad-right
-    \l :button })
-
-;; Call this is we get a key down event
-;; translate to a state machine event and and
-;; send to game
-
-(defn got-a-key [{:keys [key-code]}]
-  (let [key-char (char key-code)
-        event (get key-to-message key-char)]
-    (println (str "Sending game event!" event))
-    (send-game-message! :game-event event)))
-
-(defn got-a-key [ev]
-  (println ev)
-  )
-
 (def game-msg-to-func
-  {:toggle-pause toggle-pause-state 
-   :keypress     got-a-key
-   :add-objs     add-random-jumpy!
+  {:key-press    ckeys/process-key-event 
+   :add-objs     ST/add-random-jumpy!
    :kill-objs    kill-objs!
-   :game-event   handle-game-event  
-   } )
+   :game-event   ST/handle-game-event })
 
+(defn unhandled-message [args]
+  (println (str "unhandled message " args) ))
 
-(defn title-message-handler []
-  { :start-game (fn [])
-    :leaderboards (fn [])
-    :about (fn []) }
-  )
+(defn handle-msg [m-to-f [m v]]
+  (let [func (get m-to-f m unhandled-message)]
+    (apply func v)))
 
 (defn ^:export main []
   (om/root
     page
-    app-state
+    ST/app-state
     {:target (. js/document (getElementById "app"))})
 
   ;; Only hook up the key listener if we're running for the first time
-  (when-not (:done-init @app-state)
-    (println "Initialising*****")
+  (when-not (:done-init @ST/app-state)
     (events/listen
       js/window
-      EventType/KEYPRESS (fn [ev]
-                           (let [gev (ckeys/translate-key-event ev )]
-                             (send-game-message! :keypress gev))))
-    (swap! app-state assoc :done-init true))
+      EventType/KEYPRESS (fn [ev] (ST/send-game-message! :key-press ev)))
+    (swap! ST/app-state assoc :done-init true))
 
   (go-loop
     []
-    (let [game (:game-state @app-state)
+    (let [game (:game-state @ST/app-state)
           msg (<! (:messages game)) ]
       (handle-msg game-msg-to-func msg )
       (recur)))
