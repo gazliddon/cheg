@@ -121,13 +121,11 @@
              :title "cheg"
              }))
 
-
 (defn get-player [] (get-in @app-state [:game-state :player]))
 (defn set-player! [[player]] (swap! app-state assoc-in [:game-state :player] player))
 (defn get-time [] (get-in @app-state [:game-state :game-time]))
 
 (defn handle-game-event [ & ev-and-args ]
-
   (let [time-now (get-time)
         player (get-player)
         new-player (sm/process-events player/fsm-table player/on-event time-now player [ ev-and-args ])]

@@ -89,10 +89,12 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn get-stats-state [{:keys [objs player game-time]}]
-  (let [px (:x player)
-        py (:y player)
-        state (:state player)
-        pstr (str "state " state " {" px "," px " }") ]
+  (let [r (player/get-renderable player game-time)
+        px (:x r)
+        py (:y r)
+        pstr (str "vel " (:vel player) " "
+                  "state " (:state player) " "
+                  "{" px "," px " }") ]
     {:text (str (count objs) " objs: player: " pstr )
      :game-time game-time }))
 

@@ -42,16 +42,8 @@
 (defn process-an-event [fsm-table obj-def time-now object [ev & evargs]]
   (if-let [next-state    (event->new-state fsm-table ev (:state object)) ]
     (let [update-func    (or (next-state obj-def) (fn [o & ] o))
-          next-obj       (apply update-func (assoc object :state next-state :start-time time-now) evargs)
-          obj-no-ev      (dissoc object :events)
-          next-obj-no-ev  (dissoc next-obj :events)
-          ]
-      (when-not (= next-obj-no-ev obj-no-ev )
-        (println (str "Event " ev " on state " (:state object)))
-        (println (diff obj-no-ev next-obj-no-ev))
-        (println ""))
-
-      next-obj)
+          next-obj       (apply update-func object time-now evargs) ]
+      (assoc next-obj :state next-state))
     object))
 
 (defn process-events [fsm-table obj-def time-now arg-object arg-events ]
