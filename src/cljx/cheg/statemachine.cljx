@@ -19,6 +19,7 @@
 
 (derive #+clj clojure.lang.Keyword #+cljs cljs.core/Keyword ::keyword)
 (derive #+clj clojure.lang.PersistentHashMap #+cljs cljs.core/PersistentArrayMap ::hash-map)
+(derive #+clj clojure.lang.PersistentVector #+cljs cljs.core/PersistentVector ::vector)
 
 (defmulti state->next-state (fn [mapping _] (type mapping)))
 

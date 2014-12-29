@@ -1,14 +1,14 @@
 (ns cheg.player
   (:require
-    [cheg.state :as ST]
+    [cheg.spr :as spr]
     [cheg.statemachine :as SM]
     [cheg.vec :as vec]))
 
 
-(defn get-renderable [time-now {:keys [start-time pos vel]} ]
+(defn get-renderable [{:keys [start-time pos vel]} time-now]
   (let [obj-time (- time-now start-time)  
         [x y] (vec/add pos (vec/mul-s vel obj-time))
-        renderable (ST/mkspr {:x x
+        renderable (spr/mkspr {:x x
                :y y
                :imgs [:run-f1]
                :spr-handle :bottom-middle })
@@ -18,7 +18,7 @@
 
 (defn player-renderable [{:keys [renderable] :as o} time-now]
   (if renderable
-    (renderable time-now o)
+    (renderable o time-now )
     {:x 0 :y 0}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -47,11 +47,12 @@
 
    :out-of-bounds   :lose-life
 
+   :reset           :creating
+
    :button          {:standing :jumping
                      :walking-right :jumping 
                      :walking-left  :jumping}
    })
-
 
 (defn reset [o time-now]
   (let [{:keys [x y ]} (get-renderable o time-now)]
@@ -60,19 +61,13 @@
       :start-time time-now
       :pos [x y])))
 
-(defn do-player [f o time-now & args]
-  (-> o
-      (reset time-now)
-      (apply f o time-now args)))
-
-
 (defn go-create [o time-now pos & args]
   (-> o
       (assoc
         :start-time time-now
         :renderable get-renderable
         :vel [0 0]
-        :pos pos
+        :pos (or pos [100 100])
         :lives 3)
       (SM/event :done)))
 
@@ -90,7 +85,7 @@
         :vel [xv 0]
         :anim anim)))
 
-(defn go-walk-left [o time-now & _ ] (go-walk o time-now :walking-left -120))
+(defn go-walk-left [o time-now & _ ]  (go-walk o time-now :walking-left -120))
 (defn go-walk-right [o time-now & _ ] (go-walk o time-now :walking-right 120))
 
 (defn go-jump [{:keys [vel] :as o} time-now & args]

@@ -1,25 +1,21 @@
 (ns cheg.state
   (:require-macros [cljs.core.async.macros :refer [go go-loop]])
+
   (:require 
+    [cljs.core.async :refer [put! <! >! chan]]
     [cheg.gfx :as gfx]
     [cheg.obj :as obj]
+    [cheg.spr :as spr]
     [cheg.vec :as vec]
     [cheg.player :as player]
     [cheg.statemachine :as sm]
-    [om.dom :as dom :include-macros true]
-    [cljs.core.async :refer [put! <! >! chan]] ))
+    [om.dom :as dom :include-macros true] ))
 
 (declare app-state)
-
-(def -player
-  { :x 100 :y 100 :xv 0 :yv 0 :col "green"}
-  
-  )
 
 (defn send-game-message! [m & args]
   (do
     (let [ch (get-in @app-state [:game-state :messages])]
-      (println (str  "Sending game msg" m args))
       (put! ch [m args]))))
 
 (defn -mk-toggle-fn [state addr]
@@ -38,29 +34,6 @@
   (append-item! [:game-state :objs] o))
 
 
-(defn spr-default-behaviour [o t]
-  o)
-
-(defn spr-default-render [r {:keys [x y spr-handle] :as o} time-now]
-  (let [id (obj/obj-get-frame o time-now)
-        offset (gfx/get-img-offset id spr-handle)
-        [nx ny] (vec/add [x y] offset) ]
-      (obj/static-img r nx ny id)
-    )
-  )
-
-(def spr-defaults {:start-time 0
-                   :x 0 :y 0 :vx 0 :yv 0
-                   :imgs [:flap-f1]
-                   :behaviour spr-default-render
-                   :render spr-default-render
-                   :spr-handle :top-left
-                   })
-
-(defn mkspr [i]
-  (let [vals (merge spr-defaults i)]
-   vals))
-
 (defn get-game-time []
   (get-in @app-state [:game-state :game-time]))
 
@@ -78,7 +51,7 @@
         vel [(rand 3) (rand 3)]
         ]
     (add-obj!
-      (mkspr
+      (spr/mkspr
         {:start-time (get-game-time)
          :behaviour   (fn [o game-time]
                         (let [otime (- game-time (:start-time o))
@@ -96,24 +69,15 @@
        :spr-handle :centered
        :imgs [img]  })))
 
-
-
 (defonce app-state
   (atom {    :messages (chan)
              :mouse-pos [0 0]
-             :updating false
-
-             :stats {:num-objs 0
-                     :px 10
-                     :py 10
-                     }
-
 
              :game-state {:messages (chan)
                           :paused false
                           :objs [] 
                           :game-time 0
-                          :player (mkspr {:state :nothing
+                          :player (spr/mkspr {:state :nothing
                                           :x 100
                                           :y 100}) 
                           }

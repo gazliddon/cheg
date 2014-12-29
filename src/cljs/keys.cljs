@@ -43,7 +43,8 @@
     \d :joypad-right
     \l :button
     \c [ :create [100 100]]
-    \p :toggle-button})
+    \p :toggle-button
+    \r :reset })
 
 (def misc (atom {}))
 

@@ -8,13 +8,14 @@
     [goog.events :as events]
     [cljs.core.async :refer [put! <! >! chan]]
 
-
     [cheg.canvasrenderer :as renderer]
+
     [cheg.keys :as ckeys]
     [cheg.gfx :as gfx]
     [cheg.vec :as vec]
     [cheg.obj :as obj]
     [cheg.player :as player]
+    [cheg.spr :as spr]  
     [cheg.state :as ST] )
   (:import [goog.events EventType]))
 
@@ -62,7 +63,6 @@
     om/IRenderState
     (render-state [this _]
       (dom/button #js {:onClick (:action app)} (:text app))))  )
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn get-paused-text [b]
@@ -145,7 +145,7 @@
 
 (defn tospr [{:keys [img pos xv] :as spr}]
   (let [[x y] (get-pos-perc  pos) ]
-    (ST/mkspr (assoc spr :imgs [img] :x x :y y))))
+    (spr/mkspr (assoc spr :imgs [img] :x x :y y))))
 
 (def titles-sprs
   (mapv tospr titles))
@@ -172,7 +172,7 @@
         (render-obj-list renderer titles-sprs game-time)
         (render-obj-list renderer objs game-time)
 
-        (let [player-renderable (player/get-renderable game-time player)]
+        (let [player-renderable (player/get-renderable player game-time )]
           (render-obj-list
             renderer
             [player-renderable]
@@ -242,18 +242,15 @@
   (let [func (get m-to-f m unhandled-message)]
     (apply func v)))
 
+
+
+
+
 (defn ^:export main []
   (om/root
     page
     ST/app-state
     {:target (. js/document (getElementById "app"))})
-
-  ;; Only hook up the key listener if we're running for the first time
-  (when-not (:done-init @ST/app-state)
-    (events/listen
-      js/window
-      EventType/KEYPRESS (fn [ev] (ST/send-game-message! :key-press ev)))
-    (swap! ST/app-state assoc :done-init true))
 
   (go-loop
     []
@@ -262,6 +259,13 @@
       (handle-msg game-msg-to-func msg )
       (recur)))
   )
+
+(defn bind-keys-callback []
+    (events/listen
+      js/window
+      EventType/KEYPRESS (fn [ev] (ST/send-game-message! :key-press ev))))
+
+(defonce keys-callback (bind-keys-callback))
 
 ; The game is a series of one dimensional entities in the time axis
 ; each entity has a position and a dimension (2d, t and variation?)
