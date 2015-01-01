@@ -88,13 +88,13 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn get-stats-state [{:keys [objs player game-time]}]
-  (let [r (player/get-renderable player game-time)
-        px (:x r)
-        py (:y r)
+(defn get-stats-state [{:keys [objs player game-time ]}]
+  (let 
+    [rfunc (or (:renderable player) (fn [_] {:x 0 :y 0}))
+     {:keys [pos]} (rfunc game-time)
         pstr (str "vel " (:vel player) " "
                   "state " (:state player) " "
-                  "{" px "," px " }") ]
+                  "{" x "," y " }") ]
     {:text (str (count objs) " objs: player: " pstr )
      :game-time game-time }))
 
@@ -173,10 +173,7 @@
         (render-obj-list renderer objs game-time)
 
         (let [player-renderable (player/get-renderable player game-time )]
-          (render-obj-list
-            renderer
-            [player-renderable]
-            game-time))))
+          (render-obj-list renderer [player-renderable] game-time))))
 
     om/IDidUpdate
     (did-update [_ {:keys [objs game-time]} _]
@@ -243,9 +240,6 @@
     (apply func v)))
 
 
-
-
-
 (defn ^:export main []
   (om/root
     page
@@ -266,30 +260,4 @@
       EventType/KEYPRESS (fn [ev] (ST/send-game-message! :key-press ev))))
 
 (defonce keys-callback (bind-keys-callback))
-
-; The game is a series of one dimensional entities in the time axis
-; each entity has a position and a dimension (2d, t and variation?)
-
-; At anypoint in time in an entity record you can transform an entity into
-; a visual representation by invoking it's function
-; vs = ef(e, t)
-; the representation can be nil
-
-(defprotocol ITimeEntity
-  (create [_ t])
-  (appears? [_ lifetime])
-  (draw [_ ctx t]))
-
-
-
-
-
-
-
-
-
-
-
-
-
 

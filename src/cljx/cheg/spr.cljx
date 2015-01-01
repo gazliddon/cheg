@@ -1,5 +1,4 @@
 (ns cheg.spr
-  (:require-macros [cljs.core.async.macros :refer [go go-loop]])
   (:require 
     [cheg.gfx :as gfx]
     [cheg.obj :as obj]

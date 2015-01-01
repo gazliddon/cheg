@@ -70,20 +70,22 @@
        :imgs [img]  })))
 
 (defonce app-state
-  (atom {    :messages (chan)
-             :mouse-pos [0 0]
+  (atom {:messages (chan)
 
-             :game-state {:messages (chan)
-                          :paused false
-                          :objs [] 
-                          :game-time 0
-                          :player (spr/mkspr {:state :nothing
-                                          :x 100
-                                          :y 100}) 
-                          }
+         :mouse-pos [0 0]
 
-             :title "cheg"
-             }))
+         :game-state {:messages (chan)
+                      :paused false
+                      :objs [] 
+                      :game-time 0
+                      :player (spr/mkspr
+                                {:state :nothing
+                                 :x 100
+                                 :y 100}) 
+                      }
+
+         :title "cheg" }
+        ))
 
 (defn get-player [] (get-in @app-state [:game-state :player]))
 (defn set-player! [[player]] (swap! app-state assoc-in [:game-state :player] player))
