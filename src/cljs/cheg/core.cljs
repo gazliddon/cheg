@@ -85,7 +85,25 @@
       (om/build action-button {:text (get-paused-text paused)
                                :action ST/toggle-pause-state }))))
 
+(def time-step 0.1)
+(def duration 3)
+(def samples (/ duration time-step))
+(def acc [1 10])
+(def pos [100 100])
 
+(def my-seq (take samples  (map #(* % time-step) (range))))
+
+(def player-record
+  {:pos [ 0 100]
+   :vel [ 0 0 ]
+   :start-time 0
+   :acceleration [3 4]
+   :max-vel [100 100]})
+
+(defn jump-render [ {:keys [pos] :as o} ]
+  (map #(player/accelerate o %) my-seq))
+
+(def pjump (jump-render player-record))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn get-stats-state [{:keys [objs player game-time ]}]
@@ -93,8 +111,7 @@
     [rfunc (or (:renderable player) (fn [_] {:x 0 :y 0}))
      {:keys [pos]} (rfunc game-time)
         pstr (str "vel " (:vel player) " "
-                  "state " (:state player) " "
-                  "{" x "," y " }") ]
+                  "state " (:state player) " ")]
     {:text (str (count objs) " objs: player: " pstr )
      :game-time game-time }))
 
@@ -115,6 +132,8 @@
 (defn render-obj-list [r objs time-now]
   (doseq [{:keys [render ] :as o } objs]
     (render r o time-now)))
+
+
 
 (defn strip-render [r {:keys [xv x y imgs spr-handle] :as o} time-now]
   (let [pos [x y]

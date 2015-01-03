@@ -2,11 +2,11 @@
   (:require
     [cheg.spr :as spr]
     [cheg.statemachine :as SM]
-    [cheg.vec :as vec]))
+    [cheg.vec :as v]))
 
 (defn get-renderable [{:keys [start-time pos vel]} time-now]
   (let [obj-time (- time-now start-time)  
-        [x y] (vec/add pos (vec/mul-s vel obj-time))
+        [x y] (v/add pos (v/mul-s vel obj-time))
         renderable (spr/mkspr {:x x
                :y y
                :imgs [:run-f1]
@@ -19,34 +19,40 @@
     (renderable o time-now )
     {:x 0 :y 0}))
 
+(defn v2-half-at-sq
+  "1/2at^2 for element vectors"
+  [acc t]
+  (v/mul  (v/mul t t) (v/mul-s acc 0.5)))
+
+(defn accelerate [{:keys [pos vel acceleration start-time max-vel] } time-now]
+  (let [dt (- time-now start-time)
+        time-accelerating (v/div acceleration (v/sub max-vel vel)) 
+        acc-t (v/min [dt dt] time-accelerating)
+        acc-p (v2-half-at-sq acceleration acc-t)
+        vel-p (v/mul max-vel acc-p) ]
+
+    {:pos (v/add pos (v/add acc-p vel-p))
+     :vel (v/min max-vel (v/mul-s acceleration dt))
+     :time-accelerating time-accelerating
+     :acc-p acc-p
+     :vel-p vel-p }
+    ))
+
 (def pos-getters
-  {:null-pos ( fn [_ _] {:x 100 :y 100} )
+  {:null-pos ( fn [_ _] {:pos [100 100]
+                         :vel [0 0]} )
    
-   :stationary (fn [{:keys [pos]}]
-                 (let [[x y] pos]
-                   {:x x
-                    :y y}))
+   :stationary (fn [{:keys [pos]} _]
+                 {:pos pos
+                  :vel [0 0] })
 
    :linear (fn [{:keys [pos start-time max-vel]} time-now]
              (let [delta-t (- time-now start-time)
-                   delta-p (vec/mul-s max-vel delta-t)
-                   [x y]   (vec/add pos delta-p)]
-               {:x x
-                :y y}))
+                   delta-p (v/mul-s max-vel delta-t) ]
+               {:pos (v/add pos delta-p)
+                :vel max-vel }))
 
-   :accelerate (fn [{:keys [pos start-time max-vel time-to-get-there]} time-now]
-                 (let [delta-t     (- time-now start-time)
-                       acc         (/ max-vel time-to-get-there)
-                       half-acc    (/ acc 2.0)
-                       acc-time    (min time-to-get-there delta-t)
-                       vel-time    (max (- delta-t time-to-get-there) 0)
-                       acc-delta-p (* half-acc (* acc-time acc-time))
-                       vel-delta-p (* vel-time max-vel)
-                       delta-p     (+ acc-delta-p vel-delta-p)
-                       [x y]       (vec/add pos [delta-p 0]) ]
-                   {:x x
-                    :y y}))
-                 })
+   :accelerate accelerate })
 
 (defn get-pos [o time-now]
   (let [pos-getter-id (get o :render-id :null)
@@ -147,7 +153,7 @@
   (-> o
       (reset time-now)
       (assoc
-        :vel (vec/add vel [0 5 * 60]))))
+        :vel (v/add vel [0 5 * 60]))))
 
 (defn go-lose-life [{:keys [lives] :as o} time-now & args]
   (let  [lives-now (dec lives)]

@@ -46,6 +46,7 @@
                    :repl-options {:init-ns cheg.server
                                   :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl
                                                      cljx.repl-middleware/wrap-cljx]
+                                  :port 6502
                                   }
 
                    :plugins [[lein-figwheel "0.1.6-SNAPSHOT"]

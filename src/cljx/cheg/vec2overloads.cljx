@@ -1,6 +1,6 @@
 (ns cheg.vec2overloads
   (:require
-    [cheg.vec2 :refer :all] ))
+    [cheg.vec2 ] ))
 
 ;; Multi method dispatch for op overloading
 (derive cheg.vec2.Vec2   ::vec2 )

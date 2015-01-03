@@ -16,8 +16,6 @@
           (it "should add a vector to scalar float"
               (should (= (->Vec2 11.11 2.11) (!+ v1 1.11)))))
 
-
-
 (describe "Testing Vector Muliplications"
           (it "should multiply two vectors"
               (should (= (->Vec2 20 3) (!* v1 v2))))
