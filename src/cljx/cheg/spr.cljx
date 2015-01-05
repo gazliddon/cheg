@@ -15,7 +15,7 @@
   )
 
 (def spr-defaults {:start-time 0
-                   :x 0 :y 0 :vx 0 :yv 0
+                   :x 0 :y 0 :xv 0 :yv 0
                    :imgs [:flap-f1]
                    :behaviour spr-default-render
                    :render spr-default-render

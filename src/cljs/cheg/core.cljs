@@ -85,23 +85,36 @@
       (om/build action-button {:text (get-paused-text paused)
                                :action ST/toggle-pause-state }))))
 
-(def time-step 0.1)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Some player test stuff
+(def time-step (/ 1 60))
 (def duration 3)
 (def samples (/ duration time-step))
-(def acc [1 10])
-(def pos [100 100])
+(def acc [100 4000])
+(def pos [500 600])
+(def vel [0 -4000])
 
 (def my-seq (take samples  (map #(* % time-step) (range))))
 
 (def player-record
-  {:pos [ 0 100]
-   :vel [ 0 0 ]
+  {:pos pos
+   :vel vel
    :start-time 0
-   :acceleration [3 4]
+   :acceleration acc
    :max-vel [100 100]})
 
+(defn get-renderable [t]
+  (let [ pos-record (player/accelerate player-record t)
+        [x y] (:pos pos-record)]
+    (-> pos-record
+        (assoc :x x :y y)
+        (spr/mkspr)
+        )))
+
 (defn jump-render [ {:keys [pos] :as o} ]
-  (map #(player/accelerate o %) my-seq))
+  (map get-renderable my-seq)
+  )
 
 (def pjump (jump-render player-record))
 
@@ -132,8 +145,6 @@
 (defn render-obj-list [r objs time-now]
   (doseq [{:keys [render ] :as o } objs]
     (render r o time-now)))
-
-
 
 (defn strip-render [r {:keys [xv x y imgs spr-handle] :as o} time-now]
   (let [pos [x y]
@@ -190,6 +201,7 @@
         (obj/clear renderer bg-col)
         (render-obj-list renderer titles-sprs game-time)
         (render-obj-list renderer objs game-time)
+        (render-obj-list renderer pjump 0)
 
         (let [player-renderable (player/get-renderable player game-time )]
           (render-obj-list renderer [player-renderable] game-time))))

@@ -25,17 +25,24 @@
   (v/mul  (v/mul t t) (v/mul-s acc 0.5)))
 
 (defn accelerate [{:keys [pos vel acceleration start-time max-vel] } time-now]
-  (let [dt (- time-now start-time)
+  (let [t (- time-now start-time)
+        tv [t t ]
+        ut (v/mul-s vel tv)
         time-accelerating (v/div acceleration (v/sub max-vel vel)) 
-        acc-t (v/min [dt dt] time-accelerating)
+        time-accelerating [1000 1000]
+        acc-t (v/min tv time-accelerating)
+        vel-t (v/max [0 0] (v/sub tv time-accelerating))
         acc-p (v2-half-at-sq acceleration acc-t)
-        vel-p (v/mul max-vel acc-p) ]
+        vel-p (v/mul max-vel vel-t)
+        ]
 
-    {:pos (v/add pos (v/add acc-p vel-p))
-     :vel (v/min max-vel (v/mul-s acceleration dt))
-     :time-accelerating time-accelerating
+    {:pos (v/add ut (v/add pos (v/add acc-p vel-p)))
+     :vel (v/min max-vel (v/mul-s acceleration t))
+     :vel-t vel-t
+     :acc-t acc-t
      :acc-p acc-p
-     :vel-p vel-p }
+     :vel-p vel-p 
+     }
     ))
 
 (def pos-getters
@@ -140,7 +147,6 @@
 
 (defn go-walk [o time-now anim xv]
   (-> o
-      (reset time-now)
       (move-linear  )
       (assoc 
         :vel [xv 0]
@@ -170,4 +176,9 @@
    :walking-right go-walk-right
    :jumping       go-jump
    :lose-life     go-lose-life } )
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
