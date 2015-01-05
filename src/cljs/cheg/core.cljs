@@ -91,9 +91,9 @@
 (def time-step (/ 1 60))
 (def duration 3)
 (def samples (/ duration time-step))
-(def acc [100 4000])
+(def acc [200 4000])
 (def pos [500 600])
-(def vel [0 -4000])
+(def vel [0 -2000])
 
 (def my-seq (take samples  (map #(* % time-step) (range))))
 

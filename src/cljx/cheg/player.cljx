@@ -27,7 +27,7 @@
 (defn accelerate [{:keys [pos vel acceleration start-time max-vel] } time-now]
   (let [t (- time-now start-time)
         tv [t t ]
-        ut (v/mul-s vel tv)
+        ut (v/mul vel tv)
         time-accelerating (v/div acceleration (v/sub max-vel vel)) 
         time-accelerating [1000 1000]
         acc-t (v/min tv time-accelerating)
@@ -42,6 +42,7 @@
      :acc-t acc-t
      :acc-p acc-p
      :vel-p vel-p 
+     :ut ut
      }
     ))
 
