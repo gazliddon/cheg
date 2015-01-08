@@ -1,7 +1,6 @@
 (ns cheg.vec
   (:refer-clojure :exclude [max min]))
 
-
 (defn add
   ( [ [ax ay] [bx by] ] [ (+ ax bx ) (+ ay by )] )
   ( [a b c & xs] (reduce (fn [a b] (add a b)) [0 0] (concat [a b c] xs)) ))
@@ -9,6 +8,11 @@
 (defn sub [ [ax ay] [bx by] ] [ (- ax bx ) (- ay by )])
 (defn mul [ [ax ay] [bx by] ] [ (* ax bx ) (* ay by )])
 (defn div [ [ax ay] [bx by] ] [ (/ ax bx ) (/ ay by )])
+
+(defn safe-div [ [ax ay] [bx by] ]
+  [ ( if (= 0 bx) 0 (/ ax bx) )
+    ( if (= 0 by) 0 (/ ay by) ) ])
+
 (defn vmod [ [ax ay] [bx by] ] [ (mod ax bx ) (mod ay by )])
 (defn neg [v] (sub [0 0] v))
 
