@@ -6,12 +6,15 @@
   ( [ [ax ay] [bx by] ] [ (+ ax bx ) (+ ay by )] )
   ( [a b c & xs] (reduce (fn [a b] (add a b)) [0 0] (concat [a b c] xs)) ))
 
-
 (defn sub [ [ax ay] [bx by] ] [ (- ax bx ) (- ay by )])
 (defn mul [ [ax ay] [bx by] ] [ (* ax bx ) (* ay by )])
 (defn div [ [ax ay] [bx by] ] [ (/ ax bx ) (/ ay by )])
 (defn vmod [ [ax ay] [bx by] ] [ (mod ax bx ) (mod ay by )])
 (defn neg [v] (sub [0 0] v))
+
+(defn abs [[x y]]
+  [(if (< x 0) (- 0 x) x)
+   (if (< y 0) (- 0 y) y) ])
 
 (defn max [ [ax ay] [bx by] ]
   [(if (> ax bx) ax bx)
