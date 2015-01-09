@@ -15,6 +15,7 @@
 
 (defn send-game-message! [m & args]
   (do
+    (println args)
     (let [ch (get-in @app-state [:game-state :messages])]
       (put! ch [m args]))))
 
@@ -82,6 +83,10 @@
                                 {:state :nothing
                                  :x 100
                                  :y 100}) 
+
+                      :ptest {:yacc 1000
+                              :xacc 1000 }
+
                       }
 
          :title "cheg" }

@@ -19,32 +19,27 @@
     (renderable o time-now )
     {:x 0 :y 0}))
 
-(defn v2-half-at-sq
-  "1/2at^2 for element vectors"
-  [acc t]
-  (v/mul  (v/mul t t) (v/mul-s acc 0.5)))
+(defn ut-plus-half-at-squared
+  "ut + 1/2at^2 for element vectors"
+  [ut acc t]
+  (v/add ut  (v/mul  (v/mul t t) (v/mul-s acc 0.5))))
 
 (defn accelerate [{:keys [pos vel acceleration start-time max-vel] } time-now]
   (let [t (- time-now start-time)
-        tv [t t ]
-        ut (v/mul vel tv)
-        time-accelerating (v/div acceleration (v/sub max-vel vel)) 
-        time-accelerating [1000 1000]
-        acc-t (v/min tv time-accelerating)
-        vel-t (v/max [0 0] (v/sub tv time-accelerating))
-        acc-p (v2-half-at-sq acceleration acc-t)
+        t-as-v2 [t t ]
+        time-accelerating (v/abs  (v/safe-div acceleration (v/sub max-vel vel))) 
+        acc-t (v/min t-as-v2 time-accelerating)
+        vel-t (v/max [0 0] (v/sub t-as-v2 time-accelerating))
+        acc-p (ut-plus-half-at-squared
+                (v/mul vel t-as-v2) acceleration acc-t)
         vel-p (v/mul max-vel vel-t)
-        ]
+        pos (v/add pos (v/add acc-p vel-p))
+        [x y] pos]
 
-    {:pos (v/add ut (v/add pos (v/add acc-p vel-p)))
-     :vel (v/min max-vel (v/mul-s acceleration t))
-     :vel-t vel-t
-     :acc-t acc-t
-     :acc-p acc-p
-     :vel-p vel-p 
-     :ut ut
-     }
-    ))
+    {:pos pos
+     :vel (v/mul acceleration acc-t)
+     :x x
+     :y y }))
 
 (def pos-getters
   {:null-pos ( fn [_ _] {:pos [100 100]

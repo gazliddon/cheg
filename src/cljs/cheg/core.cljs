@@ -64,6 +64,21 @@
     (render-state [this _]
       (dom/button #js {:onClick (:action app)} (:text app))))  )
 
+(defn slider [{:keys [min-val max-val on-change value ref]} owner]
+  (reify
+    om/IRenderState
+    (render-state [this _]
+      (dom/input #js {:type "range"
+                      :ref  ref
+                      :min min-val
+                      :max max-val
+                      :value value
+                      :onChange (fn [_]
+                                  (let [this (om/get-node owner ref)
+                                        value (js/parseInt (.-value this))]
+                                    (on-change value)))})
+      )))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn get-paused-text [b]
   (if b
@@ -89,9 +104,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Some player test stuff
 (def time-step (/ 1 60))
-(def duration 3)
+(def duration 2)
 (def samples (/ duration time-step))
-(def acc [200 4000])
 (def pos [500 600])
 (def vel [0 -2000])
 
@@ -101,32 +115,44 @@
   {:pos pos
    :vel vel
    :start-time 0
-   :acceleration acc
    :max-vel [100 100]})
 
-(defn get-renderable [t]
-  (let [ pos-record (player/accelerate player-record t)
-        [x y] (:pos pos-record)]
+(defn get-renderable [t p-record-base]
+  (let [pos-record (player/accelerate p-record-base t)
+        [x y] (:pos pos-record) ]
     (-> pos-record
         (assoc :x x :y y)
         (spr/mkspr)
         )))
 
 (defn jump-render [ {:keys [pos] :as o} ]
-  (map get-renderable my-seq)
-  )
+  (let [acc [(get-in @ST/app-state [:game-state :ptest :xacc])
+             (get-in @ST/app-state [:game-state :ptest :yacc]) ]
+        p-record-base (assoc player-record :acceleration acc)]
+    (map #(get-renderable %1 p-record-base) my-seq)))
 
-(def pjump (jump-render player-record))
+(defn pjump [] (jump-render player-record))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn get-stats-state [{:keys [objs player game-time ]}]
+(defn get-stats-state [{:keys [objs player game-time ptest]}]
   (let 
     [rfunc (or (:renderable player) (fn [_] {:x 0 :y 0}))
      {:keys [pos]} (rfunc game-time)
-        pstr (str "vel " (:vel player) " "
-                  "state " (:state player) " ")]
+      pstr (str "vel " (:vel player) " "
+                  "state " (:state player) " " (:xacc ptest))]
     {:text (str (count objs) " objs: player: " pstr )
-     :game-time game-time }))
+     :game-time game-time
+     :xacc (:xacc ptest)
+     :yacc (:yacc ptest)}))
+
+(defn game-slider [ref val min max & args]
+  (om/build slider
+            {:ref ref
+             :min-val min
+             :max-val max
+             :value val
+             :on-change (fn [v]
+                          (ST/send-game-message! :set-state args val))}))
 
 (defn stats [ game owner ]
   (reify
@@ -138,8 +164,11 @@
       (om/update-state! owner (fn [_]( get-stats-state next-props)) ))
 
     om/IRenderState
-    (render-state [ _ state ]
-      (dom/p nil (:text state)))))
+    (render-state [ _ {:keys [text xacc yacc]} ]
+      (dom/div nil
+               (dom/p nil text)
+               (game-slider "yacc" yacc 0 5000 :game-state :ptest :yacc)
+               (game-slider "xacc" xacc 0 5000 :game-state :ptest :xacc)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn render-obj-list [r objs time-now]
@@ -201,7 +230,7 @@
         (obj/clear renderer bg-col)
         (render-obj-list renderer titles-sprs game-time)
         (render-obj-list renderer objs game-time)
-        (render-obj-list renderer pjump 0)
+        (render-obj-list renderer (pjump) 0)
 
         (let [player-renderable (player/get-renderable player game-time )]
           (render-obj-list renderer [player-renderable] game-time))))
@@ -257,10 +286,18 @@
         (dom/h1 nil (:text app))
         (om/build container app)))))
 
+(defn ptest-change! [my-key value]
+  (reset! ST/app-state (assoc-in @ST/app-state [:game-state :ptest my-key] value)))
+
+(defn set-state! [my-key value]
+  (reset! ST/app-state (assoc-in @ST/app-state my-key value)))
+
 (def game-msg-to-func
   {:key-press    ckeys/process-key-event 
    :add-objs     ST/add-random-jumpy!
    :kill-objs    kill-objs!
+   :ptest-change ptest-change!
+   :set-state    set-state!
    :game-event   ST/handle-game-event })
 
 (defn unhandled-message [args]
