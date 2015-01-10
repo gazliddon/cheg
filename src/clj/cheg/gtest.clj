@@ -66,15 +66,16 @@
   (let [[lo hi] (get-lo-hi v)]
     (-> machine
         (set-byte addr lo)
-        (set-byte (inc addr) lo))
-    )
-  )
+        (set-byte (inc addr) lo))))
 
-(defn get-word-operard [^Machine {:keys [cpu] :as machine}]
-  (get-word machine (inc (:pc cpu))))
+(defn get-operand-addr [^Machine {:keys [cpu] :as machine}]
+  (make-word (inc (:pc cpu))))
 
-(defn get-byte-operand [^Machine {:keys [cpu] :as machine}]
-  (get-byte machine (inc (:pc cpu))))
+(defn get-operand-word [^Machine {:keys [cpu] :as machine}]
+  (get-word machine (get-operand-addr machine)))
+
+(defn get-operand-byte [^Machine {:keys [cpu] :as machine}]
+  (get-byte machine (get-operand-addr machine)))
 
 ;; Flag getter / setters
 (defn set-c [ ^Machine m  v ]
@@ -127,6 +128,40 @@
   (set-pc machine (+ (get-pc machine) v)))
 
 
+;; Address generation helper routines
+;; Assumes PC -> at to be executed op code
+(defn get-regs [^Machine {:keys [cpu]}]
+  [(:a cpu)
+   (:x cpu)
+   (:y cpu)])
+
+(defn addr-immediate [^Machine m]
+  (get-operand-addr m))
+
+(defn addr-zp [^Machine m]
+  (get-operand-byte m))
+
+(defn addr-abs [^Machine {:keys [mem cpu] :as m}]
+  (get-operand-word m))
+
+(defn addr-abs-x [^Machine m]
+  (let [ [a x y] (get-regs m)] 
+    (make-word (+ (get-operand-word m) x))))
+
+(defn addr-abs-y [^Machine m]
+  (let [ [a x y] (get-regs m)] 
+    (make-word (+ (get-operand-word m) y))))
+
+(defn addr-indirect-x [^Machine m]
+  (let [[a x y] (get-regs m)
+        zp-addr (make-byte  (+ x  (get-operand-byte m))) ]
+    (get-word m zp-addr)))
+
+(defn addr-indirect-y [^Machine m]
+  (let [[a x y] (get-regs m)
+        zp-addr (get-operand-byte m) ]
+    (get-word m (get-word m  zp-addr))))
+
 
 (defrecord Prog [^long start-address
                  ^clojure.lang.PersistentVector mem])
@@ -136,17 +171,17 @@
 (def NMI-VEC 0xfffc)
 (def BRK-VEC 0xfffa)
 
-(defn get-irq-vec [^Machine machine] (get-word machine IRQ-VEC))
-(defn get-nmi-vec [^Machine machine] (get-word machine NMI-VEC))
-(defn get-brk-vec [^Machine machine] (get-word machine BRK-VEC))
+(defn get-irq-vec [^Machine m] (get-word m IRQ-VEC))
+(defn get-nmi-vec [^Machine m] (get-word m NMI-VEC))
+(defn get-brk-vec [^Machine m] (get-word m BRK-VEC))
 
-(defn set-irq-vec [^Machine machine v] (set-word machine IRQ-VEC v))
-(defn set-nmi-vec [^Machine machine v] (set-word machine NMI-VEC v))
-(defn set-brk-vec [^Machine machine v] (set-word machine BRK-VEC v))
+(defn set-irq-vec [^Machine m v] (set-word m IRQ-VEC v))
+(defn set-nmi-vec [^Machine m v] (set-word m NMI-VEC v))
+(defn set-brk-vec [^Machine m v] (set-word m BRK-VEC v))
 
 
 (defn set-pc [^Machine machine addr]
-         (assoc-in machine [:cpu :pc] addr) )
+  (assoc-in machine [:cpu :pc] addr) )
 
 (defn load-prog [^Machine machine ^Prog {:keys [start-address mem]}]
   (let [machine-mem (:mem machine)
@@ -154,8 +189,7 @@
         slice-1 (drop (+ start-address (count mem) )machine-mem)
         new-mem (concat slice-0 mem slice-1) ]
 
-    (assoc machine :mem (vec new-mem)))
-  )
+    (assoc machine :mem (vec new-mem))))
 
 (defn load-prog-set-pc [^Machine machine ^Prog {:keys [start-address] :as prog}]
   (-> machine
@@ -214,8 +248,8 @@
 
 (defn get-operand [^Machine m {:keys [operand-size]} ]
   (case :operand-size
-    :word [(get-word-operard m) 2] 
-    :byte [(get-byte-operand m) 1] 
+    :word [(get-operand-word m) 2] 
+    :byte [(get-operand-byte m) 1] 
     (assert false)))
 
 ;; Execute instructions
