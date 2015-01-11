@@ -22,5 +22,5 @@
 
 (def opcodes 
   (->> opcodes-base
-       (map #(merge % default-op-code))
+       (map #(merge default-op-code %))
        (vec)))

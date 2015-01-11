@@ -4,17 +4,17 @@
 ;; CPU regs and flags
 (defrecord Cpu
   [^long pc
-  ^long a
-  ^long x
-  ^long y
-  ^long s
-  C
-  Z
-  I
-  D
-  B
-  V
-  N ])
+   ^long a
+   ^long x
+   ^long y
+   ^long s
+   C
+   Z
+   I
+   D
+   B
+   V
+   N ])
 
 ;; Make a cpu convinience func
 (defn mk-cpu []

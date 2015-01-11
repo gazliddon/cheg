@@ -36,6 +36,9 @@
         (set-byte addr lo)
         (set-byte (inc addr) lo))))
 
+(defn get-op-code [^Machine {:keys [cpu] :as m}]
+  (get-word m (get-pc cpu)))
+
 (defn get-operand-addr [^Machine {:keys [cpu] :as machine}]
   (make-word (inc (:pc cpu))))
 
@@ -154,6 +157,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Mash together alu + address generation to construct all of the stuff
 ;; I need for each opcode into a big fn table keyed by the opcode hex number
+
 (defn addr-func-to-addr-rec [f]
   {:getter  (fn [^Machine m] (get-value m f))
    :setter  (fn [^Machine m ^long v] (set-value m f v)) })
@@ -168,7 +172,11 @@
    :indirect-y        (addr-func-to-addr-rec addr-indirect-y )
    :indirect-absolute (addr-func-to-addr-rec addr-indirect-abs )})
 
-(def default-jmp-tab (take 256 (repeat identity)))
+(defn mk-vec [n elem]
+  (->> elem
+       (repeat)
+       (take n)
+       (vec)))
 
 (defn mk-operation [write-to-mem {:keys [getter setter]} op]
   (fn [^Machine {:keys [cpu] :as m}]
@@ -185,44 +193,57 @@
        (mk-operation write-to-mem (amode mode-to-addr-calc-func) op)  ])
     (keys addr-modes)))
 
-(defn add-op-func [tab [hex opfunc]]
-  (assoc tab hex opfunc))
 
 (defn reduce-op-funcs [tab op-code-rec]
-  (reduce add-op-func tab (mk-operations op-code-rec)))
+   (reduce (fn [t [h f]] ( assoc t h f )) tab (mk-operations op-code-rec)))
 
-(defn mk-opcode-jmp-tab [opcode-tab]
-  (reduce reduce-op-funcs default-jmp-tab opcode-tab))
+(defn mk-opcode-jmp-tab [tab opcode-tab]
+  (reduce reduce-op-funcs tab opcode-tab))
 
-(def op-code-jmp-tab (mk-opcode-jmp-tab OP/opcodes))
+(def op-code-jmp-tab (mk-opcode-jmp-tab (mk-vec 256 identity) OP/opcodes))
+
+(defn decode-instrucion [^Machine m]
+  (let [op-code (get-op-code m)
+        op-func (nth op-code-jmp-tab op-code) ]
+    (op-func m)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defrecord Prog [^long start-address
+(defrecord Prg [^long start-address
                  ^clojure.lang.PersistentVector mem])
 
-(defn load-prog [^Machine machine ^Prog {:keys [start-address mem]}]
+(defn load-prg [^Machine machine ^Prg {:keys [start-address mem]}]
   (let [machine-mem (:mem machine)
         slice-0 (take start-address machine-mem)
         slice-1 (drop (+ start-address (count mem) )machine-mem) ]
 
     (assoc machine :mem (vec (concat slice-0 mem slice-1)))))
 
-(defn load-prog-set-pc [^Machine {:keys [mem cpu] :as m} ^Prog {:keys [start-address] :as prog}]
-  (-> m
-      (load-prog prog)
-      (assoc-in :cpu (set-pc cpu start-address))))
+(defn load-prg-set-pc [^Machine {:keys [mem cpu] :as m} ^Prg {:keys [start-address] :as prog}]
+  (let [new-cpu (set-pc cpu start-address)]
+    (-> m
+        (load-prg prog)
+        (assoc :cpu new-cpu)
+        )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Let's test it!
 
-; (def prog
-;   (->Prog
-;     0x4000
-;     [0xee 0x00 0x40    
-;      0x4c 0x00 0x10]))
+(def prg
+  (->Prg
+    0x4000
+    [0xee 0x00 0x40    
+     0x4c 0x00 0x10]))
 
-; (-> (make-machine)
-;     (load-prog-set-pc prog)
-;     (decode-instrucion)
-;     )
+(def m
+  (-> (make-machine)
+      (load-prg-set-pc prg)
+      )  )
+
+(def cpu (:cpu test-machine))
+(decode-instrucion test-machine)
+
+(get-word m 0x4000)
+(get-byte m 0x4000)
+(get-byte m (get-pc (:cpu m)))
 
