@@ -1,10 +1,12 @@
 (ns cheg.gtest
-
-  (:require [cheg.emuutils
-             cheg.cpu
-             cheg.opcodes :as opcodes])
-  
-  )
+  (:require [ cheg.emuutils :refer [make-byte
+                                    make-word
+                                    get-lo-hi
+                                    is-neg?
+                                    overflowed?]]
+            [ cheg.cpu :refer :all ]
+            [ cheg.opcodes :as OP ])
+  (:import [cheg.cpu Cpu]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defrecord Machine
@@ -72,6 +74,14 @@
         zp-addr (make-byte  (+ x  (get-operand-byte m))) ]
     (get-word m zp-addr)))
 
+(defn addr-indirect-abs [^Machine m]
+  (let [[a x y] (get-regs m)
+        zp-addr (make-byte  (+ x  (get-operand-byte m))) ]
+    (->> m
+         (get-operand-word)
+         (get-word m))))
+
+
 (defn addr-indirect-y [^Machine m]
   (let [[a x y] (get-regs m)
         zp-addr (get-operand-byte m) ]
@@ -124,11 +134,11 @@
 
 (defn std-math-op [^Cpu cpu ^long in-val func]
   (let [out-val (make-byte (func in-val))
-        overflowed (overflowed? in-val new-val)]
+        overflowed (overflowed? in-val out-val)]
     (op-ret
       out-val
       (-> cpu
-          (set-c overflow)
+          (set-c overflowed)
           (set-z (= out-val 0))
           (set-v overflowed)
           (set-n (is-neg? out-val))))))
@@ -139,14 +149,14 @@
   (op-ret in-val (assoc cpu :pc in-val)))
 
 (defmethod operation :inc [_ cpu in-val]
-  (std-math-op cpu in-val flags inc) )
+  (std-math-op cpu in-val inc) )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Mash together alu + address generation to construct all of the stuff
 ;; I need for each opcode into a big fn table keyed by the opcode hex number
-(def addr-func-to-addr-rec [f]
+(defn addr-func-to-addr-rec [f]
   {:getter  (fn [^Machine m] (get-value m f))
-   :setter  (fn {^Machine n ^long v} (set-value m f v)) })
+   :setter  (fn [^Machine m ^long v] (set-value m f v)) })
 
 (def mode-to-addr-calc-func
   {:immediate         (addr-func-to-addr-rec addr-immediate )
@@ -184,7 +194,7 @@
 (defn mk-opcode-jmp-tab [opcode-tab]
   (reduce reduce-op-funcs default-jmp-tab opcode-tab))
 
-(def op-code-jmp-tab (mk-opcode-jmp-tab opcodes))
+(def op-code-jmp-tab (mk-opcode-jmp-tab OP/opcodes))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defrecord Prog [^long start-address
@@ -193,27 +203,26 @@
 (defn load-prog [^Machine machine ^Prog {:keys [start-address mem]}]
   (let [machine-mem (:mem machine)
         slice-0 (take start-address machine-mem)
-        slice-1 (drop (+ start-address (count mem) )machine-mem)
-        new-mem (concat slice-0 mem slice-1) ]
+        slice-1 (drop (+ start-address (count mem) )machine-mem) ]
 
-    (assoc machine :mem (vec new-mem))))
+    (assoc machine :mem (vec (concat slice-0 mem slice-1)))))
 
-(defn load-prog-set-pc [^Machine machine ^Prog {:keys [start-address] :as prog}]
-  (-> machine
+(defn load-prog-set-pc [^Machine {:keys [mem cpu] :as m} ^Prog {:keys [start-address] :as prog}]
+  (-> m
       (load-prog prog)
-      (set-pc start-address)))
+      (assoc-in :cpu (set-pc cpu start-address))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Let's test it!
 
-(def prog
-  (->Prog
-    0x4000
-    [0xee 0x00 0x40    
-     0x4c 0x00 0x10]))
+; (def prog
+;   (->Prog
+;     0x4000
+;     [0xee 0x00 0x40    
+;      0x4c 0x00 0x10]))
 
-(-> (make-machine)
-    (load-prog-set-pc prog)
-    (decode-instrucion)
-    )
+; (-> (make-machine)
+;     (load-prog-set-pc prog)
+;     (decode-instrucion)
+;     )
 
