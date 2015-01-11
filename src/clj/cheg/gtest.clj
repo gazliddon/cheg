@@ -1,58 +1,24 @@
-(ns cheg.gtest)
+(ns cheg.gtest
 
+  (:require [cheg.emuutils
+             cheg.cpu
+             cheg.opcodes :as opcodes])
+  
+  )
 
-;; CPU regs and flags
-(defrecord Cpu
-  [^long pc
-  ^long a
-  ^long x
-  ^long y
-  ^long s
-
-  C
-  Z
-  I
-  D
-  B
-  V
-  N ])
-
-
-;; Make a cpu convinience func
-
-(defn mk-cpu []
-  (->Cpu
-    0
-    0
-    0
-    0
-    0xff
-    false
-    false
-    false
-    false
-    false
-    false
-    false
-    ))
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defrecord Machine
   [^Cpu cpu
    ^clojure.lang.PersistentVector mem])
 
-;; Memory access
-(defn make-byte [v]
-  (bit-and v 0xff))
-
-(defn make-word [v]
-  (bit-and v 0xffff) )
+(defn make-machine []
+  (let [cpu (mk-cpu)
+        mem (vec (take 65536 (repeat 0)))
+        machine (->Machine cpu mem)]
+    machine))
 
 (defn get-byte [^Machine {:keys [mem]} ^long addr]
   (make-byte  (nth mem (make-word  addr))))
-
-(defn get-lo-hi [^long v]
-  [(bit-and 0xff v)
-   (bit-and 0xff (/ v 0x100)) ])
 
 (defn get-word [^Machine {:keys [mem] :as machine} ^long addr]
   (let [ lo (get-byte machine addr )
@@ -76,57 +42,6 @@
 
 (defn get-operand-byte [^Machine {:keys [cpu] :as machine}]
   (get-byte machine (get-operand-addr machine)))
-
-;; Flag getter / setters
-(defn set-c [ ^Machine m  v ]
-  (assoc-in m [:cpu :C] v))
-
-(defn set-z [ ^Machine m  v ]
-  (assoc-in m [:cpu :Z] v))
-
-(defn set-i [ ^Machine m  v ]
-  (assoc-in m [:cpu :I] v))
-
-(defn set-d [ ^Machine m  v ]
-  (assoc-in m [:cpu :D] v))
-
-(defn set-b [ ^Machine m  v ]
-  (assoc-in m [:cpu :B] v))
-
-(defn set-v [ ^Machine m  v ]
-  (assoc-in m [:cpu :V] v))
-
-(defn set-n [ ^Machine m  v ]
-  (assoc-in m [:cpu :N] v))
-
-
-(defn get-c [ ^Machine m ]
-  (get-in m [:cpu :C] ))
-
-(defn get-z [ ^Machine m  ]
-  (get-in m [:cpu :Z] ))
-
-(defn get-i [ ^Machine m  ]
-  (get-in m [:cpu :I] ))
-
-(defn get-d [ ^Machine m  ]
-  (get-in m [:cpu :D] ))
-
-(defn get-b [ ^Machine m  ]
-  (get-in m [:cpu :B] ))
-
-(defn get-b [ ^Machine m  ]
-  (get-in m [:cpu :N] ))
-
-(defn get-pc [^Machine {:keys [cpu]}]
-  (:pc cpu))
-
-(defn set-pc [^Machine machine ^long v]
-  (assoc-in machine [:cpu :pc] (make-word v)))
-
-(defn add-pc [^Machine machine ^long v]
-  (set-pc machine (+ (get-pc machine) v)))
-
 
 ;; Address generation helper routines
 ;; Assumes PC -> at to be executed op code
@@ -162,10 +77,32 @@
         zp-addr (get-operand-byte m) ]
     (get-word m (get-word m  zp-addr))))
 
+(defn get-value [^Machine m func]
+  (get-byte m (func m)))
 
-(defrecord Prog [^long start-address
-                 ^clojure.lang.PersistentVector mem])
+(defn set-value [ ^Machine m func v ]
+  (set-byte m (func m) v))
 
+(defn get-value-immediate [^Machine m]  (get-value m addr-immediate))
+(defn get-value-zp [^Machine m]  (get-value m addr-zp))
+(defn get-value-abs [^Machine m]  (get-value m addr-abs))
+(defn get-value-abs-x [^Machine m]  (get-value m addr-abs-x))
+(defn get-value-abs-y [^Machine m]  (get-value m addr-abs-y))
+(defn get-value-indirect-x [^Machine m]  (get-value m addr-indirect-x))
+(defn get-value-indirect-y [^Machine m]  (get-value m addr-indirect-y))
+
+(defn set-value-immediate [^Machine m ^long v]  (set-value m addr-immediate v))
+(defn set-value-zp [^Machine m ^long v]  (set-value m addr-zp v))
+(defn set-value-abs [^Machine m ^long v]  (set-value m addr-abs v))
+(defn set-value-abs-x [^Machine m ^long v]  (set-value m addr-abs-x v))
+(defn set-value-abs-y [^Machine m ^long v]  (set-value m addr-abs-y v))
+(defn set-value-indirect-x [^Machine m ^long v]  (set-value m addr-indirect-x v))
+(defn set-value-indirect-y [^Machine m ^long v]  (set-value m addr-indirect-y v))
+
+(defn get-op-code [^Machine m]
+  (get-byte m (get-pc m)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Setting / getting vectorz
 (def IRQ-VEC 0xfffe)
 (def NMI-VEC 0xfffc)
@@ -180,8 +117,78 @@
 (defn set-brk-vec [^Machine m v] (set-word m BRK-VEC v))
 
 
-(defn set-pc [^Machine machine addr]
-  (assoc-in machine [:cpu :pc] addr) )
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ALU stuff I guese
+(defn op-ret [^long v ^Cpu cpu]
+  [v cpu])
+
+(defn std-math-op [^Cpu cpu ^long in-val func]
+  (let [out-val (make-byte (func in-val))
+        overflowed (overflowed? in-val new-val)]
+    (op-ret
+      out-val
+      (-> cpu
+          (set-c overflow)
+          (set-z (= out-val 0))
+          (set-v overflowed)
+          (set-n (is-neg? out-val))))))
+
+(defmulti operation (fn [op-id ^Cpu cpu ^long in-val]))
+
+(defmethod operation :jmp [_ cpu in-val]
+  (op-ret in-val (assoc cpu :pc in-val)))
+
+(defmethod operation :inc [_ cpu in-val]
+  (std-math-op cpu in-val flags inc) )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Mash together alu + address generation to construct all of the stuff
+;; I need for each opcode into a big fn table keyed by the opcode hex number
+(def addr-func-to-addr-rec [f]
+  {:getter  (fn [^Machine m] (get-value m f))
+   :setter  (fn {^Machine n ^long v} (set-value m f v)) })
+
+(def mode-to-addr-calc-func
+  {:immediate         (addr-func-to-addr-rec addr-immediate )
+   :zero-page         (addr-func-to-addr-rec addr-zp )
+   :absolute          (addr-func-to-addr-rec addr-abs )
+   :absolute-x        (addr-func-to-addr-rec addr-abs-x )
+   :absolute-y        (addr-func-to-addr-rec addr-abs-y )
+   :indirect-x        (addr-func-to-addr-rec addr-indirect-x )
+   :indirect-y        (addr-func-to-addr-rec addr-indirect-y )
+   :indirect-absolute (addr-func-to-addr-rec addr-indirect-abs )})
+
+(def default-jmp-tab (take 256 (repeat identity)))
+
+(defn mk-operation [write-to-mem {:keys [getter setter]} op]
+  (fn [^Machine {:keys [cpu] :as m}]
+    (let [in-val (getter m)
+          [out-val new-m] (operation op cpu in-val)]
+      (if write-to-mem
+        (setter new-m out-val)
+        new-m))))
+
+(defn mk-operations [{:keys [write-to-mem op addr-modes]}]
+  (map
+    (fn [amode]
+      [(amode addr-modes)
+       (mk-operation write-to-mem (amode mode-to-addr-calc-func) op)  ])
+    (keys addr-modes)))
+
+(defn add-op-func [tab [hex opfunc]]
+  (assoc tab hex opfunc))
+
+(defn reduce-op-funcs [tab op-code-rec]
+  (reduce add-op-func tab (mk-operations op-code-rec)))
+
+(defn mk-opcode-jmp-tab [opcode-tab]
+  (reduce reduce-op-funcs default-jmp-tab opcode-tab))
+
+(def op-code-jmp-tab (mk-opcode-jmp-tab opcodes))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defrecord Prog [^long start-address
+                 ^clojure.lang.PersistentVector mem])
 
 (defn load-prog [^Machine machine ^Prog {:keys [start-address mem]}]
   (let [machine-mem (:mem machine)
@@ -196,74 +203,6 @@
       (load-prog prog)
       (set-pc start-address)))
 
-(defn make-machine []
-  (let [cpu (mk-cpu)
-        mem (vec (take 65536 (repeat 0)))
-        machine (->Machine cpu mem)]
-    machine))
-
-(defn is-neg? [v]
-  (bit-test v 7))
-
-(defn is-pos? [v]
-  (not (is-neg? v)))
-
-(defn pos-to-neg? [old-val new-val]
-  (and (is-neg? old-val)
-       (is-pos? new-val)))
-
-(defn neg-to-pos? [old-val new-val]
-  (pos-to-neg? new-val old-val))
-
-(defn overflowed? [old-val new-val]
-  (or (neg-to-pos? old-val new-val)
-      (pos-to-neg? old-val new-val)))
-
-(defmulti opcode (fn [^long op ^Machine machine ^long operand] [op]))
-
-(defmethod opcode 0xee
-  [_ {:keys [mem cpu] :as machine } operand]
-  (let [val (get-word machine operand)
-        new-val (make-byte (inc val ))
-        overflow (overflowed? val new-val) ]
-
-    (-> machine
-        (set-c overflow)
-        (set-z (= new-val 0))
-        (set-v overflow)
-        (set-n (is-neg? new-val))
-        (set-word operand new-val))))
-
-
-(def opcodes
-  { 0xee {:mode :absolute
-          :cycles 4
-          :mnemomic "INC"
-          :operand-size :word
-          :func (fn [m o] (o 0xee m o)) }
-   })
-
-(defn get-op-code [^Machine m]
-  (get-byte m (get-pc m)))
-
-(defn get-operand [^Machine m {:keys [operand-size]} ]
-  (case :operand-size
-    :word [(get-operand-word m) 2] 
-    :byte [(get-operand-byte m) 1] 
-    (assert false)))
-
-;; Execute instructions
-(defn decode-instrucion [^Machine {:keys [cpu mem] :as m} ]
-  (let [op-rec (get-op-code m)
-        [operand size] (get-operand m op-rec ) ]
-    (println "HERE I AM")
-    (-> m
-        (add-pc size)
-        ((:func op-rec ) operand))))
-
-(defn print-word [^Machine m ^long addr]
-  (println (get-word m addr)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Let's test it!
 
@@ -271,10 +210,10 @@
   (->Prog
     0x4000
     [0xee 0x00 0x40    
-     0x20 0x00 0x10]))
+     0x4c 0x00 0x10]))
 
 (-> (make-machine)
     (load-prog-set-pc prog)
     (decode-instrucion)
-    (print-word 0x1000))
+    )
 
