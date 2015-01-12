@@ -14,7 +14,10 @@
    D
    B
    V
-   N ])
+   N
+
+   ^long address-bus
+   ^long data-bus ])
 
 ;; Make a cpu convinience func
 (defn mk-cpu []
@@ -31,6 +34,8 @@
     false
     false
     false
+    0
+    0
     ))
 
 ;; Flag getter / setters

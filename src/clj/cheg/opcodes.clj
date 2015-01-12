@@ -17,7 +17,7 @@
 
    {:name "JMP"
     :addr-modes {:absolute 0x4c
-                 :indirect 0x64 }
+                 :indirect-absolute 0x64 }
     :op :jmp } ])
 
 (def opcodes 
