@@ -3,11 +3,11 @@
 
 ;; CPU regs and flags
 (defrecord Cpu
-  [^long pc
-   ^long a
-   ^long x
-   ^long y
-   ^long s
+  [^long PC
+   ^long A
+   ^long X
+   ^long Y
+   ^long S
    C
    Z
    I
@@ -15,9 +15,7 @@
    B
    V
    N
-
-   ^long address-bus
-   ^long data-bus ])
+   ])
 
 ;; Make a cpu convinience func
 (defn mk-cpu []
@@ -34,8 +32,6 @@
     false
     false
     false
-    0
-    0
     ))
 
 ;; Flag getter / setters
@@ -79,14 +75,15 @@
   (:N cpu ))
 
 (defn get-pc [^Cpu cpu]
-  (:pc cpu))
+  (:PC cpu))
 
 (defn set-pc [^Cpu cpu ^long v]
-  (assoc cpu :pc (U/make-word v)))
+  (assoc cpu :PC (U/make-word v)))
 
-(defn add-pc [^Cpu {:keys [pc] :as cpu} ^long v]
-  (set-pc cpu (+ pc v)))
+(defn add-pc [^Cpu {:keys [PC] :as cpu} ^long v]
+  (set-pc cpu (+ PC v)))
 
-(defn get-carry-as-val [^Cpu {:keys [c]}]
+(defn get-carry-as-val [^Cpu {:keys [C]}]
   (if c 1 0))
+
 
